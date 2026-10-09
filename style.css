@@ -20,7 +20,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
 .page-title { font-size: 28px; font-weight: 800; margin-bottom: 20px; letter-spacing: -0.5px; }
 .section-title { font-size: 18px; font-weight: 700; margin: 25px 0 10px 0; color: var(--text-primary); }
 
-/* Tarjetas Pro */
+/* Tarjetas Balance Pro */
 .balance-card { background: linear-gradient(135deg, #1c1c1e, #2c2c2e); color: white; border-radius: 20px; padding: 25px 20px; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.15); margin-bottom: 15px; }
 .balance-label { font-size: 14px; color: #a1a1a6; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;}
 #balance-total { font-size: 42px; font-weight: 800; margin: 10px 0 20px 0; letter-spacing: -1px;}
@@ -38,7 +38,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
 .text-red { color: var(--red) !important; }
 .text-blue { color: var(--blue) !important; }
 
-/* Gráficos y Filtros */
+/* Panel Explorador (Filtros y Stats) */
+.filter-box { background: var(--surface-color); padding: 15px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); display: flex; flex-wrap: wrap; gap: 10px;}
+.filter-group { flex: 1; min-width: 45%; }
+.filter-group label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;}
+.filter-group select { width: 100%; padding: 10px; font-size: 14px; background: var(--bg-color); border-radius: 8px; border: 1px solid #e5e5ea; font-weight: 500;}
+
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+.stat-card { color: white; padding: 20px 15px; border-radius: 16px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: background 0.3s ease;}
+.stat-value { font-size: 22px; font-weight: 800; margin-bottom: 5px; line-height: 1.2; }
+.stat-label { font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;}
+
+/* Gráficos y Filtros rápidos */
 .chart-container { background: var(--surface-color); padding: 20px 15px; border-radius: 16px; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 .filter-container { display: flex; gap: 10px; margin-bottom: 15px; }
 .filter-btn { flex: 1; padding: 8px 0; border: 1px solid #e5e5ea; background: var(--surface-color); border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-secondary); transition: 0.2s; }
@@ -53,7 +64,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
 .form-container { background: var(--surface-color); padding: 20px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 .input-group { margin-bottom: 20px; }
 .input-group label { display: block; font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
-input, select { width: 100%; padding: 14px; font-size: 16px; border: 1px solid #e5e5ea; border-radius: 12px; background-color: #f2f2f7; appearance: none; }
+input, select { width: 100%; padding: 14px; font-size: 16px; border: 1px solid #e5e5ea; border-radius: 12px; background-color: var(--bg-color); appearance: none; }
 .btn-primary { width: 100%; padding: 16px; color: white; border: none; border-radius: 12px; font-size: 17px; font-weight: 700; margin-top: 10px; transition: 0.2s; }
 .btn-red { background-color: var(--red); }
 .btn-green { background-color: var(--green); }
@@ -67,8 +78,8 @@ input, select { width: 100%; padding: 14px; font-size: 16px; border: 1px solid #
 .item-sub { font-size: 13px; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
 .item-amount { font-size: 16px; font-weight: 800; }
 
-/* Tab Bar */
+/* Tab Bar - Ajustado a 4 botones */
 .tab-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 85px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1); display: flex; justify-content: space-around; padding-bottom: env(safe-area-inset-bottom); }
-.tab-item { background: none; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 33%; color: var(--text-secondary); font-size: 11px; font-weight: 600; }
+.tab-item { background: none; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 25%; color: var(--text-secondary); font-size: 11px; font-weight: 600; }
 .tab-item.active { color: var(--accent-color); }
 .tab-item .icon { font-size: 24px; margin-bottom: 4px; }
