@@ -4,7 +4,7 @@ const CAT_INGRESOS = ["💼 Nómina Principal", "💼 Ingreso Extra", "🔄 Devo
 const CAT_AHORROS = ["🐷 Hucha General", "✈️ Fondo Viaje", "🚨 Fondo Emergencia", "📈 Inversión (Indexados/Bolsa)"];
 
 let tipoActual = 'gasto';
-let filtroGraficoActual = 'gasto'; // Filtro dinámico del queso
+let filtroGraficoActual = 'gasto';
 let movimientos = JSON.parse(localStorage.getItem('myfinance_movimientos')) || [];
 
 let pieChartInstancia = null;
@@ -72,7 +72,7 @@ function actualizarSelectCategorias() {
     });
 }
 
-// Guardar Registro
+// Guardar Registro (Con soporte para fecha manual)
 document.getElementById('form-finanzas').addEventListener('submit', (e) => {
     e.preventDefault();
     
@@ -80,10 +80,13 @@ document.getElementById('form-finanzas').addEventListener('submit', (e) => {
     const categoria = document.getElementById('select-categoria').value;
     const metodo = document.getElementById('select-metodo').value;
     const descripcion = document.getElementById('input-descripcion').value;
+    const fechaManual = document.getElementById('input-fecha').value;
+
+    const fechaRegistro = fechaManual ? new Date(fechaManual).toISOString() : new Date().toISOString();
 
     const nuevoMovimiento = {
         id: Date.now(),
-        fecha: new Date().toISOString(),
+        fecha: fechaRegistro,
         tipo: tipoActual,
         cantidad: cantidad,
         categoria: categoria,
@@ -91,10 +94,15 @@ document.getElementById('form-finanzas').addEventListener('submit', (e) => {
         descripcion: descripcion
     };
 
-    movimientos.unshift(nuevoMovimiento);
+    // Ordenar cronológicamente si se insertan fechas pasadas a mano
+    movimientos.push(nuevoMovimiento);
+    movimientos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); 
+
     localStorage.setItem('myfinance_movimientos', JSON.stringify(movimientos));
     
     document.getElementById('form-finanzas').reset();
+    document.getElementById('input-fecha').value = ""; // Limpiar calendario
+    
     renderAll();
     navigate('view-dashboard', document.querySelectorAll('.tab-item')[0]);
 });
@@ -107,11 +115,8 @@ function renderAll() {
     renderBarChart();
 }
 
-// Balance Pro (Matemáticas Avanzadas)
 function renderBalance() {
-    let ingresos = 0; 
-    let gastos = 0;
-    let ahorros = 0;
+    let ingresos = 0; let gastos = 0; let ahorros = 0;
 
     movimientos.forEach(m => {
         if (m.tipo === 'ingreso') ingresos += m.cantidad;
@@ -119,7 +124,6 @@ function renderBalance() {
         else if (m.tipo === 'ahorro') ahorros += m.cantidad;
     });
 
-    // Tu liquidez (lo que puedes gastar) son tus ingresos menos tus gastos MENOS lo que has apartado para ahorrar
     const balanceLiquido = ingresos - gastos - ahorros;
 
     document.getElementById('total-ingresos').textContent = `+${ingresos.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
@@ -128,7 +132,6 @@ function renderBalance() {
     document.getElementById('balance-total').textContent = `${balanceLiquido.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
 }
 
-// Historial
 function renderHistorial() {
     const contenedor = document.getElementById('historial-list');
     contenedor.innerHTML = '';
@@ -142,12 +145,12 @@ function renderHistorial() {
         const div = document.createElement('div');
         div.className = 'list-item';
         
-        const fecha = new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+        const fecha = new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit' });
         
         let signo = '-';
         let colorClass = 'text-red';
         if (m.tipo === 'ingreso') { signo = '+'; colorClass = 'text-green'; }
-        else if (m.tipo === 'ahorro') { signo = '→'; colorClass = 'text-blue'; } // Ahorro es un movimiento lateral
+        else if (m.tipo === 'ahorro') { signo = '→'; colorClass = 'text-blue'; }
 
         div.innerHTML = `
             <div>
@@ -160,9 +163,7 @@ function renderHistorial() {
     });
 }
 
-// --- GRÁFICOS ---
-
-// Cambiar filtro del Quesito
+// Filtros y Gráficos
 function cambiarFiltroGrafico(tipo, btnElement) {
     filtroGraficoActual = tipo;
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
@@ -182,14 +183,12 @@ function renderPieChart() {
     const labels = Object.keys(sumas);
     const data = Object.values(sumas);
 
-    // Colores según el tipo
-    let colores = ['#ff3b30', '#ff9500', '#ffcc00', '#ff2d55', '#8e8e93']; // Rojo/Naranja para Gastos
-    if (filtroGraficoActual === 'ingreso') colores = ['#34c759', '#30b0c7', '#32ade6']; // Verdes para Ingresos
-    if (filtroGraficoActual === 'ahorro') colores = ['#007aff', '#5856d6', '#af52de']; // Azules para Ahorro
+    let colores = ['#ff3b30', '#ff9500', '#ffcc00', '#ff2d55', '#8e8e93'];
+    if (filtroGraficoActual === 'ingreso') colores = ['#34c759', '#30b0c7', '#32ade6'];
+    if (filtroGraficoActual === 'ahorro') colores = ['#007aff', '#5856d6', '#af52de'];
 
     if (pieChartInstancia) pieChartInstancia.destroy();
 
-    // Si no hay datos, mostramos un gráfico gris vacío para mantener el diseño
     if (labels.length === 0) {
         pieChartInstancia = new Chart(ctx, {
             type: 'doughnut',
@@ -201,25 +200,15 @@ function renderPieChart() {
 
     pieChartInstancia = new Chart(ctx, {
         type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{ data: data, backgroundColor: colores, borderWidth: 0 }]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { position: 'bottom', labels: { font: { family: '-apple-system', size: 12 }, padding: 20 } } },
-            cutout: '65%'
-        }
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: colores, borderWidth: 0 }] },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { family: '-apple-system', size: 12 }, padding: 20 } } }, cutout: '65%' }
     });
 }
 
-// Nuevo Gráfico de Barras (Flujo de Caja)
 function renderBarChart() {
     const ctx = document.getElementById('barChart').getContext('2d');
     
-    let ingresosTotales = 0;
-    let gastosTotales = 0;
-
+    let ingresosTotales = 0; let gastosTotales = 0;
     movimientos.forEach(m => {
         if (m.tipo === 'ingreso') ingresosTotales += m.cantidad;
         if (m.tipo === 'gasto') gastosTotales += m.cantidad;
@@ -230,28 +219,15 @@ function renderBarChart() {
     barChartInstancia = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Flujo de Caja'], // Una sola categoría con dos barras
+            labels: ['Flujo de Caja'],
             datasets: [
-                {
-                    label: 'Ingresos',
-                    data: [ingresosTotales],
-                    backgroundColor: '#34c759',
-                    borderRadius: 8
-                },
-                {
-                    label: 'Gastos',
-                    data: [gastosTotales],
-                    backgroundColor: '#ff3b30',
-                    borderRadius: 8
-                }
+                { label: 'Ingresos', data: [ingresosTotales], backgroundColor: '#34c759', borderRadius: 8 },
+                { label: 'Gastos', data: [gastosTotales], backgroundColor: '#ff3b30', borderRadius: 8 }
             ]
         },
         options: {
             responsive: true,
-            scales: {
-                y: { beginAtZero: true, grid: { color: '#f2f2f7' }, border: {display: false} },
-                x: { grid: { display: false }, border: {display: false} }
-            },
+            scales: { y: { beginAtZero: true, grid: { color: '#f2f2f7' }, border: {display: false} }, x: { grid: { display: false }, border: {display: false} } },
             plugins: { legend: { position: 'top', labels: { font: { family: '-apple-system' } } } }
         }
     });
