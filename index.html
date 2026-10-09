@@ -5,16 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MyFinance</title>
     
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
     <link rel="manifest" href="manifest.json">
     
-    <!-- Configuración iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="MyFinance">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <!-- Librería para Gráficos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -38,7 +36,6 @@
                 </div>
             </div>
 
-            <!-- Tarjeta de Ahorro Aislada -->
             <div class="ahorro-card">
                 <div class="ahorro-header">
                     <span class="icon">🐷</span>
@@ -47,7 +44,7 @@
                 <h3 id="total-ahorros" class="text-blue">0,00 €</h3>
             </div>
 
-            <h2 class="section-title">Flujo de Caja (Ingreso vs Gasto)</h2>
+            <h2 class="section-title">Flujo de Caja</h2>
             <div class="chart-container">
                 <canvas id="barChart"></canvas>
             </div>
@@ -110,19 +107,65 @@
             </div>
         </main>
 
-        <!-- Pantalla 3: Historial -->
+        <!-- Pantalla 3: Explorador / Detalles Avanzados -->
+        <main id="view-detalles" class="view">
+            <h1 class="page-title">🔍 Explorador</h1>
+            
+            <div class="filter-box">
+                <div class="filter-group">
+                    <label>Tipo de Operación</label>
+                    <select id="filtro-tipo" onchange="actualizarDesplegableCategoriasFiltro()">
+                        <option value="todos">Todos los tipos</option>
+                        <option value="gasto">Solo Gastos</option>
+                        <option value="ingreso">Solo Ingresos</option>
+                        <option value="ahorro">Solo Ahorros</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Categoría</label>
+                    <select id="filtro-categoria" onchange="renderListaDetalles()">
+                        <option value="todas">Todas las categorías</option>
+                    </select>
+                </div>
+                <div class="filter-group" style="min-width: 100%;">
+                    <label>Período (Mes)</label>
+                    <select id="filtro-mes" onchange="renderListaDetalles()">
+                        <option value="todos">Todo el histórico</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card" id="card-total-filtro" style="background: linear-gradient(135deg, #1c1c1e, #2c2c2e);">
+                    <div class="stat-value" id="det-total-dinero">0,00 €</div>
+                    <div class="stat-label">Suma Total</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #007aff, #5856d6);">
+                    <div class="stat-value" id="det-total-movs">0</div>
+                    <div class="stat-label">Movimientos</div>
+                </div>
+            </div>
+
+            <h2 class="section-title">Resultados Filtrados</h2>
+            <div id="detalles-list" class="list-container"></div>
+        </main>
+
+        <!-- Pantalla 4: Historial Global -->
         <main id="view-historial" class="view">
-            <h1 class="page-title">🕒 Movimientos</h1>
+            <h1 class="page-title">🕒 Últimos Movs.</h1>
             <div id="historial-list" class="list-container"></div>
         </main>
 
-        <!-- Navegación -->
+        <!-- Navegación a 4 botones -->
         <nav class="tab-bar">
             <button class="tab-item active" onclick="navigate('view-dashboard', this)">
                 <span class="icon">📊</span><span>Balance</span>
             </button>
             <button class="tab-item" onclick="navigate('view-registrar', this)">
                 <span class="icon">➕</span><span>Añadir</span>
+            </button>
+            <button class="tab-item" onclick="navigate('view-detalles', this)">
+                <span class="icon">🔍</span><span>Explorar</span>
             </button>
             <button class="tab-item" onclick="navigate('view-historial', this)">
                 <span class="icon">🕒</span><span>Historial</span>
