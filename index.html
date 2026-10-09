@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MyFinance</title>
     
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
     <link rel="manifest" href="manifest.json">
     
     <!-- Configuración iOS -->
@@ -82,9 +82,7 @@
                     
                     <div class="input-group">
                         <label>Categoría</label>
-                        <select id="select-categoria" required>
-                            <!-- Dinámico -->
-                        </select>
+                        <select id="select-categoria" required></select>
                     </div>
 
                     <div class="input-group">
@@ -100,6 +98,11 @@
                     <div class="input-group">
                         <label>Descripción (Opcional)</label>
                         <input type="text" id="input-descripcion" placeholder="Ej: Cena con amigos">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Fecha y hora (Vacío = Ahora mismo)</label>
+                        <input type="datetime-local" id="input-fecha">
                     </div>
 
                     <button type="submit" id="btn-guardar" class="btn-primary btn-red">Registrar Gasto</button>
