@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MyFinance</title>
     
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=6">
     <link rel="manifest" href="manifest.json">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -155,6 +155,26 @@
             <h1 class="page-title">🕒 Últimos Movs.</h1>
             <div id="historial-list" class="list-container"></div>
         </main>
+
+        <!-- MODAL TICKET DETALLE -->
+        <div id="modal-detalle" class="modal" style="display: none;">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h2 id="modal-cat">Categoría</h2>
+                    <button type="button" class="close-btn" onclick="cerrarModal()">✕</button>
+                </div>
+                <h1 id="modal-amount" class="modal-amount">-0.00 €</h1>
+                
+                <div class="modal-body">
+                    <p><strong>Tipo:</strong> <span id="modal-tipo" style="text-transform: capitalize;">--</span></p>
+                    <p><strong>Fecha:</strong> <span id="modal-fecha">--</span></p>
+                    <p><strong>Método:</strong> <span id="modal-metodo">--</span></p>
+                    <p><strong>Descripción:</strong> <span id="modal-desc" style="color: var(--text-primary);">--</span></p>
+                </div>
+                
+                <button class="btn-primary" style="background-color: #ff3b30; margin-top: 5px;" onclick="eliminarMovimiento()">🗑️ Eliminar Registro</button>
+            </div>
+        </div>
 
         <!-- Navegación a 4 botones -->
         <nav class="tab-bar">
