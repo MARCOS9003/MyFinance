@@ -1,22 +1,28 @@
+// URL de tu base de datos en Google Sheets
+const API_URL = "https://script.google.com/macros/s/AKfycbzr5OECLW7wG9VF5hVdlJbm1ZwnsiyW3M3t1MPnYrS5LytGLqr923NBjGH5_j8ORdlCGw/exec";
+
+// Categorías Avanzadas
 const CAT_GASTOS = ["🛒 Supermercado", "🍔 Restaurantes/Ocio", "🚗 Transporte", "🛍️ Compras Varias", "🏠 Alquiler/Hipoteca", "⚡ Suministros (Luz, Agua)", "📱 Suscripciones", "💸 Otros Gastos"];
 const CAT_INGRESOS = ["💼 Nómina Principal", "💼 Ingreso Extra", "🔄 Devolución", "📦 Venta Segundamano", "🎁 Regalo", "📈 Rendimiento Inversión"];
 const CAT_AHORROS = ["🐷 Hucha General", "✈️ Fondo Viaje", "🚨 Fondo Emergencia", "📈 Inversión (Indexados/Bolsa)"];
 
 let tipoActual = 'gasto';
 let filtroGraficoActual = 'gasto';
-let movimientos = JSON.parse(localStorage.getItem('myfinance_movimientos')) || [];
-let idMovimientoActivo = null; // Variable para saber qué ticket hemos abierto
+let idMovimientoActivo = null; 
 
 let pieChartInstancia = null;
 let barChartInstancia = null;
 
+// Ahora arranca vacío y espera a la nube
+let movimientos = [];
+
 document.addEventListener('DOMContentLoaded', () => {
     actualizarSelectCategorias();
     actualizarDesplegableCategoriasFiltro(); 
-    renderAll();
+    cargarDatosDesdeGoogle(); // Llama a la base de datos al abrir
 });
 
-// Navegación
+// NAVEGACIÓN
 function navigate(viewId, tabElement) {
     document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
@@ -26,7 +32,40 @@ function navigate(viewId, tabElement) {
     }
 }
 
-// Lógica de Formularios (Gasto, Ingreso, Ahorro)
+// ------------------------------------------------------------------
+// NUEVO: SISTEMA DE SINCRONIZACIÓN CON GOOGLE SHEETS
+// ------------------------------------------------------------------
+async function cargarDatosDesdeGoogle() {
+    try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Lee las filas del Excel y las transforma en el formato que entiende la app
+            movimientos = data.registros.map(row => ({
+                id: row[0],
+                fecha: row[1],
+                tipo: row[2],
+                cantidad: Number(row[3]),
+                categoria: row[4],
+                metodo: row[5],
+                descripcion: row[6] || ""
+            })).reverse(); // Le da la vuelta para ver los más nuevos primero
+            
+            // Guarda una copia de seguridad local por si te quedas sin cobertura
+            localStorage.setItem('myfinance_movimientos_cache', JSON.stringify(movimientos));
+            renderAll();
+        }
+    } catch (error) {
+        console.error("Error al conectar con Sheets. Cargando modo sin conexión:", error);
+        movimientos = JSON.parse(localStorage.getItem('myfinance_movimientos_cache')) || [];
+        renderAll();
+    }
+}
+
+// ------------------------------------------------------------------
+
+// FORMULARIOS
 document.getElementById('btn-gasto').addEventListener('click', () => setTipo('gasto'));
 document.getElementById('btn-ingreso').addEventListener('click', () => setTipo('ingreso'));
 document.getElementById('btn-ahorro').addEventListener('click', () => setTipo('ahorro'));
@@ -73,8 +112,8 @@ function actualizarSelectCategorias() {
     });
 }
 
-// Guardar Registro
-document.getElementById('form-finanzas').addEventListener('submit', (e) => {
+// GUARDAR REGISTRO (CON ENVÍO A LA NUBE)
+document.getElementById('form-finanzas').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const cantidad = parseFloat(document.getElementById('input-cantidad').value);
@@ -95,16 +134,27 @@ document.getElementById('form-finanzas').addEventListener('submit', (e) => {
         descripcion: descripcion
     };
 
+    // 1. Mostrarlo al instante en la app
     movimientos.push(nuevoMovimiento);
     movimientos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); 
-
-    localStorage.setItem('myfinance_movimientos', JSON.stringify(movimientos));
+    localStorage.setItem('myfinance_movimientos_cache', JSON.stringify(movimientos));
     
     document.getElementById('form-finanzas').reset();
     document.getElementById('input-fecha').value = ""; 
     
     renderAll();
     navigate('view-dashboard', document.querySelectorAll('.tab-item')[0]);
+
+    // 2. Enviarlo a Google Sheets en segundo plano
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ accion: 'nuevo', ...nuevoMovimiento })
+        });
+    } catch (error) {
+        console.error("Error guardando en la nube:", error);
+    }
 });
 
 // MOTOR DE RENDERIZADO
@@ -203,7 +253,7 @@ function renderListaDetalles() {
     filtrados.forEach(m => {
         const div = document.createElement('div');
         div.className = 'list-item';
-        div.setAttribute('onclick', `abrirDetalle(${m.id})`); // Acción para abrir modal
+        div.setAttribute('onclick', `abrirDetalle(${m.id})`);
         
         const fecha = new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
         
@@ -211,7 +261,6 @@ function renderListaDetalles() {
         if (m.tipo === 'ingreso') { signo = '+'; colorClass = 'text-green'; }
         else if (m.tipo === 'ahorro') { signo = '→'; colorClass = 'text-blue'; }
 
-        // Recortamos la descripción en la lista para que no rompa el diseño
         let descPreview = "";
         if (m.descripcion) {
             descPreview = m.descripcion.length > 18 ? ' • ' + m.descripcion.substring(0, 18) + '...' : ' • ' + m.descripcion;
@@ -240,7 +289,7 @@ function renderHistorial() {
     movimientos.slice(0, 25).forEach(m => {
         const div = document.createElement('div');
         div.className = 'list-item';
-        div.setAttribute('onclick', `abrirDetalle(${m.id})`); // Acción para abrir modal
+        div.setAttribute('onclick', `abrirDetalle(${m.id})`);
         
         const fecha = new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
         
@@ -264,7 +313,7 @@ function renderHistorial() {
     });
 }
 
-// LOGICA DE LA VENTANA (MODAL DETALLE) Y ELIMINAR
+// MODAL Y ELIMINAR CON ENVÍO A LA NUBE
 function abrirDetalle(id) {
     idMovimientoActivo = id;
     const mov = movimientos.find(m => m.id === id);
@@ -293,19 +342,33 @@ function cerrarModal() {
     idMovimientoActivo = null;
 }
 
-function eliminarMovimiento() {
+async function eliminarMovimiento() {
     if (!idMovimientoActivo) return;
     
-    const confirmacion = confirm("¿Estás seguro de que quieres eliminar este movimiento? No podrás recuperarlo.");
+    const confirmacion = confirm("¿Estás seguro de que quieres eliminar este movimiento?");
     if (confirmacion) {
-        movimientos = movimientos.filter(m => m.id !== idMovimientoActivo);
-        localStorage.setItem('myfinance_movimientos', JSON.stringify(movimientos));
+        const idABorrar = idMovimientoActivo; // Guardamos el ID antes de limpiar variables
+        
+        // 1. Borrado visual inmediato
+        movimientos = movimientos.filter(m => m.id !== idABorrar);
+        localStorage.setItem('myfinance_movimientos_cache', JSON.stringify(movimientos));
         cerrarModal();
         renderAll();
+
+        // 2. Orden de borrado a la nube
+        try {
+            await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ accion: 'eliminar', id: idABorrar })
+            });
+        } catch (error) {
+            console.error("Error al borrar en la nube:", error);
+        }
     }
 }
 
-// LÓGICA ESTÁNDAR DE BALANCE Y GRÁFICOS
+// BALANCE Y GRÁFICOS
 function renderBalance() {
     let ingresos = 0; let gastos = 0; let ahorros = 0;
     movimientos.forEach(m => {
