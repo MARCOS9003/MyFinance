@@ -1,4 +1,3 @@
-// Categorías Avanzadas
 const CAT_GASTOS = ["🛒 Supermercado", "🍔 Restaurantes/Ocio", "🚗 Transporte", "🛍️ Compras Varias", "🏠 Alquiler/Hipoteca", "⚡ Suministros (Luz, Agua)", "📱 Suscripciones", "💸 Otros Gastos"];
 const CAT_INGRESOS = ["💼 Nómina Principal", "💼 Ingreso Extra", "🔄 Devolución", "📦 Venta Segundamano", "🎁 Regalo", "📈 Rendimiento Inversión"];
 const CAT_AHORROS = ["🐷 Hucha General", "✈️ Fondo Viaje", "🚨 Fondo Emergencia", "📈 Inversión (Indexados/Bolsa)"];
@@ -6,13 +5,14 @@ const CAT_AHORROS = ["🐷 Hucha General", "✈️ Fondo Viaje", "🚨 Fondo Eme
 let tipoActual = 'gasto';
 let filtroGraficoActual = 'gasto';
 let movimientos = JSON.parse(localStorage.getItem('myfinance_movimientos')) || [];
+let idMovimientoActivo = null; // Variable para saber qué ticket hemos abierto
 
 let pieChartInstancia = null;
 let barChartInstancia = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     actualizarSelectCategorias();
-    actualizarDesplegableCategoriasFiltro(); // Inicializa el explorador
+    actualizarDesplegableCategoriasFiltro(); 
     renderAll();
 });
 
@@ -117,7 +117,7 @@ function renderAll() {
     renderListaDetalles(); 
 }
 
-// LÓGICA DEL EXPLORADOR (NUEVA PESTAÑA)
+// EXPLORADOR
 function actualizarDesplegableCategoriasFiltro() {
     const tipo = document.getElementById('filtro-tipo').value;
     const selectCat = document.getElementById('filtro-categoria');
@@ -170,17 +170,14 @@ function renderListaDetalles() {
     const filtrados = movimientos.filter(m => {
         const matchTipo = (tipo === 'todos') || (m.tipo === tipo);
         const matchCat = (cat === 'todas') || (m.categoria === cat);
-        
         const date = new Date(m.fecha);
         const mesStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2, '0')}`;
         const matchMes = (mes === 'todos') || (mesStr === mes);
-
         return matchTipo && matchCat && matchMes;
     });
 
     let sumaTotal = 0;
     filtrados.forEach(m => {
-        // Si muestras "Todos" y hay gastos e ingresos mezclados, restamos los gastos. Si no, lo sumamos en absoluto.
         if (tipo === 'todos' && m.tipo === 'gasto') sumaTotal -= m.cantidad;
         else if (tipo === 'todos' && m.tipo === 'ahorro') sumaTotal -= m.cantidad;
         else sumaTotal += m.cantidad;
@@ -189,7 +186,6 @@ function renderListaDetalles() {
     document.getElementById('det-total-movs').textContent = filtrados.length;
     document.getElementById('det-total-dinero').textContent = `${sumaTotal.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
 
-    // Cambiar color de la tarjeta de suma según si es positivo o negativo
     const cardSuma = document.getElementById('card-total-filtro');
     if (tipo === 'gasto') cardSuma.style.background = 'linear-gradient(135deg, #ff3b30, #ff2d55)';
     else if (tipo === 'ingreso') cardSuma.style.background = 'linear-gradient(135deg, #34c759, #28a745)';
@@ -207,18 +203,24 @@ function renderListaDetalles() {
     filtrados.forEach(m => {
         const div = document.createElement('div');
         div.className = 'list-item';
+        div.setAttribute('onclick', `abrirDetalle(${m.id})`); // Acción para abrir modal
         
         const fecha = new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
         
-        let signo = '-';
-        let colorClass = 'text-red';
+        let signo = '-'; let colorClass = 'text-red';
         if (m.tipo === 'ingreso') { signo = '+'; colorClass = 'text-green'; }
         else if (m.tipo === 'ahorro') { signo = '→'; colorClass = 'text-blue'; }
+
+        // Recortamos la descripción en la lista para que no rompa el diseño
+        let descPreview = "";
+        if (m.descripcion) {
+            descPreview = m.descripcion.length > 18 ? ' • ' + m.descripcion.substring(0, 18) + '...' : ' • ' + m.descripcion;
+        }
 
         div.innerHTML = `
             <div>
                 <div class="item-main">${m.categoria}</div>
-                <div class="item-sub">${fecha} • ${m.metodo} ${m.descripcion ? '• ' + m.descripcion : ''}</div>
+                <div class="item-sub">${fecha} • ${m.metodo}${descPreview}</div>
             </div>
             <div class="item-amount ${colorClass}">${signo}${m.cantidad.toLocaleString('es-ES', {minimumFractionDigits: 2})} €</div>
         `;
@@ -226,7 +228,84 @@ function renderListaDetalles() {
     });
 }
 
-// Funciones estándar de Balance e Historial global
+function renderHistorial() {
+    const contenedor = document.getElementById('historial-list');
+    contenedor.innerHTML = '';
+
+    if (movimientos.length === 0) {
+        contenedor.innerHTML = '<div class="list-item"><span class="item-main" style="color:var(--text-secondary);">Aún no hay movimientos.</span></div>';
+        return;
+    }
+
+    movimientos.slice(0, 25).forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'list-item';
+        div.setAttribute('onclick', `abrirDetalle(${m.id})`); // Acción para abrir modal
+        
+        const fecha = new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+        
+        let signo = '-'; let colorClass = 'text-red';
+        if (m.tipo === 'ingreso') { signo = '+'; colorClass = 'text-green'; }
+        else if (m.tipo === 'ahorro') { signo = '→'; colorClass = 'text-blue'; }
+
+        let descPreview = "";
+        if (m.descripcion) {
+            descPreview = m.descripcion.length > 18 ? ' • ' + m.descripcion.substring(0, 18) + '...' : ' • ' + m.descripcion;
+        }
+
+        div.innerHTML = `
+            <div>
+                <div class="item-main">${m.categoria}</div>
+                <div class="item-sub">${fecha} • ${m.metodo}${descPreview}</div>
+            </div>
+            <div class="item-amount ${colorClass}">${signo}${m.cantidad.toLocaleString('es-ES', {minimumFractionDigits: 2})} €</div>
+        `;
+        contenedor.appendChild(div);
+    });
+}
+
+// LOGICA DE LA VENTANA (MODAL DETALLE) Y ELIMINAR
+function abrirDetalle(id) {
+    idMovimientoActivo = id;
+    const mov = movimientos.find(m => m.id === id);
+    if (!mov) return;
+
+    const fechaCompleta = new Date(mov.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    
+    let signo = '-'; let colorClass = 'text-red';
+    if (mov.tipo === 'ingreso') { signo = '+'; colorClass = 'text-green'; }
+    else if (mov.tipo === 'ahorro') { signo = ''; colorClass = 'text-blue'; }
+
+    document.getElementById('modal-cat').textContent = mov.categoria;
+    document.getElementById('modal-amount').textContent = `${signo}${mov.cantidad.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
+    document.getElementById('modal-amount').className = `modal-amount ${colorClass}`;
+    
+    document.getElementById('modal-tipo').textContent = mov.tipo;
+    document.getElementById('modal-fecha').textContent = fechaCompleta;
+    document.getElementById('modal-metodo').textContent = mov.metodo;
+    document.getElementById('modal-desc').textContent = mov.descripcion || "Sin descripción";
+
+    document.getElementById('modal-detalle').style.display = 'flex';
+}
+
+function cerrarModal() {
+    document.getElementById('modal-detalle').style.display = 'none';
+    idMovimientoActivo = null;
+}
+
+function eliminarMovimiento() {
+    if (!idMovimientoActivo) return;
+    
+    const confirmacion = confirm("¿Estás seguro de que quieres eliminar este movimiento? No podrás recuperarlo.");
+    if (confirmacion) {
+        movimientos = movimientos.filter(m => m.id !== idMovimientoActivo);
+        localStorage.setItem('myfinance_movimientos', JSON.stringify(movimientos));
+        cerrarModal();
+        renderAll();
+    }
+}
+
+// LÓGICA ESTÁNDAR DE BALANCE Y GRÁFICOS
 function renderBalance() {
     let ingresos = 0; let gastos = 0; let ahorros = 0;
     movimientos.forEach(m => {
@@ -241,38 +320,6 @@ function renderBalance() {
     document.getElementById('total-gastos').textContent = `-${gastos.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
     document.getElementById('total-ahorros').textContent = `${ahorros.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
     document.getElementById('balance-total').textContent = `${balanceLiquido.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
-}
-
-function renderHistorial() {
-    const contenedor = document.getElementById('historial-list');
-    contenedor.innerHTML = '';
-
-    if (movimientos.length === 0) {
-        contenedor.innerHTML = '<div class="list-item"><span class="item-main" style="color:var(--text-secondary);">Aún no hay movimientos.</span></div>';
-        return;
-    }
-
-    // Mostrar solo los últimos 20 en la pestaña global para no saturar, el resto en Explorador
-    movimientos.slice(0, 20).forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'list-item';
-        
-        const fecha = new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
-        
-        let signo = '-';
-        let colorClass = 'text-red';
-        if (m.tipo === 'ingreso') { signo = '+'; colorClass = 'text-green'; }
-        else if (m.tipo === 'ahorro') { signo = '→'; colorClass = 'text-blue'; }
-
-        div.innerHTML = `
-            <div>
-                <div class="item-main">${m.categoria}</div>
-                <div class="item-sub">${fecha} • ${m.metodo} ${m.descripcion ? '• ' + m.descripcion : ''}</div>
-            </div>
-            <div class="item-amount ${colorClass}">${signo}${m.cantidad.toLocaleString('es-ES', {minimumFractionDigits: 2})} €</div>
-        `;
-        contenedor.appendChild(div);
-    });
 }
 
 function cambiarFiltroGrafico(tipo, btnElement) {
