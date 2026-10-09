@@ -2,196 +2,108 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MyFinance</title>
-    
-    <link rel="stylesheet" href="style.css?v=3">
-    <link rel="manifest" href="manifest.json">
-    
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="MyFinance">
-    <link rel="apple-touch-icon" href="icon.png">
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app">
-        <!-- Pantalla 1: Dashboard / Balance PRO -->
-        <main id="view-dashboard" class="view active">
-            <h1 class="page-title">📊 Visión General</h1>
-            
-            <div class="balance-card">
-                <p class="balance-label">Disponible (Liquidez)</p>
-                <h2 id="balance-total">0,00 €</h2>
-                <div class="balance-row">
-                    <div class="ingresos-box">
-                        <small>Ingresos Reales</small>
-                        <p id="total-ingresos" class="text-green">+0,00 €</p>
-                    </div>
-                    <div class="gastos-box">
-                        <small>Gastos Reales</small>
-                        <p id="total-gastos" class="text-red">-0,00 €</p>
-                    </div>
-                </div>
+    <nav class="tabs">
+        <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+        <button class="tab-btn" onclick="switchTab('add')">Registrar</button>
+        <button class="tab-btn" onclick="switchTab('explore')">Explorar</button>
+    </nav>
+
+    <!-- PESTAÑA: DASHBOARD -->
+    <section id="dashboard" class="tab-content active">
+        <div class="card principal">
+            <h3>Cuenta Principal</h3>
+            <p id="checking-balance">0.00 €</p>
+        </div>
+        
+        <div class="dashboard-split">
+            <div class="card liquidity">
+                <h3>Colchón Liquidez</h3>
+                <p id="liquidity-balance">0.00 €</p>
             </div>
-
-            <div class="ahorro-card">
-                <div class="ahorro-header">
-                    <span class="icon">🐷</span>
-                    <span class="ahorro-label">Fondo de Ahorro Total</span>
-                </div>
-                <h3 id="total-ahorros" class="text-blue">0,00 €</h3>
-            </div>
-
-            <h2 class="section-title">Flujo de Caja</h2>
-            <div class="chart-container">
-                <canvas id="barChart"></canvas>
-            </div>
-
-            <h2 class="section-title">Análisis Detallado</h2>
-            <div class="filter-container">
-                <button class="filter-btn active" onclick="cambiarFiltroGrafico('gasto', this)">Gastos</button>
-                <button class="filter-btn" onclick="cambiarFiltroGrafico('ingreso', this)">Ingresos</button>
-                <button class="filter-btn" onclick="cambiarFiltroGrafico('ahorro', this)">Ahorros</button>
-            </div>
-            <div class="chart-container">
-                <canvas id="pieChart"></canvas>
-            </div>
-        </main>
-
-        <!-- Pantalla 2: Registrar -->
-        <main id="view-registrar" class="view">
-            <h1 class="page-title">✍️ Nuevo Movimiento</h1>
-            
-            <div class="toggle-container">
-                <button id="btn-gasto" class="toggle-btn active" type="button">Gasto</button>
-                <button id="btn-ingreso" class="toggle-btn" type="button">Ingreso</button>
-                <button id="btn-ahorro" class="toggle-btn" type="button">Ahorro</button>
-            </div>
-
-            <div class="form-container">
-                <form id="form-finanzas">
-                    <div class="input-group">
-                        <label>Cantidad (€)</label>
-                        <input type="number" id="input-cantidad" step="0.01" placeholder="0.00" required>
-                    </div>
-                    
-                    <div class="input-group">
-                        <label>Categoría</label>
-                        <select id="select-categoria" required></select>
-                    </div>
-
-                    <div class="input-group">
-                        <label>Método de Pago / Origen</label>
-                        <select id="select-metodo" required>
-                            <option value="Tarjeta">💳 Tarjeta / Cuenta Principal</option>
-                            <option value="Efectivo">💵 Efectivo</option>
-                            <option value="Transferencia">🏦 Transferencia / Bizum</option>
-                            <option value="Cuenta Ahorro">🐷 Cuenta Ahorro / Hucha</option>
-                        </select>
-                    </div>
-
-                    <div class="input-group">
-                        <label>Descripción (Opcional)</label>
-                        <input type="text" id="input-descripcion" placeholder="Ej: Cena con amigos">
-                    </div>
-
-                    <div class="input-group">
-                        <label>Fecha y hora (Vacío = Ahora mismo)</label>
-                        <input type="datetime-local" id="input-fecha">
-                    </div>
-
-                    <button type="submit" id="btn-guardar" class="btn-primary btn-red">Registrar Gasto</button>
-                </form>
-            </div>
-        </main>
-
-        <!-- Pantalla 3: Explorador / Detalles Avanzados -->
-        <main id="view-detalles" class="view">
-            <h1 class="page-title">🔍 Explorador</h1>
-            
-            <div class="filter-box">
-                <div class="filter-group">
-                    <label>Tipo de Operación</label>
-                    <select id="filtro-tipo" onchange="actualizarDesplegableCategoriasFiltro()">
-                        <option value="todos">Todos los tipos</option>
-                        <option value="gasto">Solo Gastos</option>
-                        <option value="ingreso">Solo Ingresos</option>
-                        <option value="ahorro">Solo Ahorros</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Categoría</label>
-                    <select id="filtro-categoria" onchange="renderListaDetalles()">
-                        <option value="todas">Todas las categorías</option>
-                    </select>
-                </div>
-                <div class="filter-group" style="min-width: 100%;">
-                    <label>Período (Mes)</label>
-                    <select id="filtro-mes" onchange="renderListaDetalles()">
-                        <option value="todos">Todo el histórico</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="stats-grid">
-                <div class="stat-card" id="card-total-filtro" style="background: linear-gradient(135deg, #1c1c1e, #2c2c2e);">
-                    <div class="stat-value" id="det-total-dinero">0,00 €</div>
-                    <div class="stat-label">Suma Total</div>
-                </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #007aff, #5856d6);">
-                    <div class="stat-value" id="det-total-movs">0</div>
-                    <div class="stat-label">Movimientos</div>
-                </div>
-            </div>
-
-            <h2 class="section-title">Resultados Filtrados</h2>
-            <div id="detalles-list" class="list-container"></div>
-        </main>
-
-        <!-- Pantalla 4: Historial Global -->
-        <main id="view-historial" class="view">
-            <h1 class="page-title">🕒 Últimos Movs.</h1>
-            <div id="historial-list" class="list-container"></div>
-        </main>
-
-        <!-- MODAL TICKET DETALLE -->
-        <div id="modal-detalle" class="modal" style="display: none;">
-            <div class="modal-card">
-                <div class="modal-header">
-                    <h2 id="modal-cat">Categoría</h2>
-                    <button type="button" class="close-btn" onclick="cerrarModal()">✕</button>
-                </div>
-                <h1 id="modal-amount" class="modal-amount">-0.00 €</h1>
-                
-                <div class="modal-body">
-                    <p><strong>Tipo:</strong> <span id="modal-tipo" style="text-transform: capitalize;">--</span></p>
-                    <p><strong>Fecha:</strong> <span id="modal-fecha">--</span></p>
-                    <p><strong>Método:</strong> <span id="modal-metodo">--</span></p>
-                    <p><strong>Descripción:</strong> <span id="modal-desc" style="color: var(--text-primary);">--</span></p>
-                </div>
-                
-                <button class="btn-primary" style="background-color: #ff3b30; margin-top: 5px;" onclick="eliminarMovimiento()">🗑️ Eliminar Registro</button>
+            <div class="card investment">
+                <h3>Inversión L.P.</h3>
+                <p id="investment-balance">0.00 €</p>
             </div>
         </div>
 
-        <!-- Navegación a 4 botones -->
-        <nav class="tab-bar">
-            <button class="tab-item active" onclick="navigate('view-dashboard', this)">
-                <span class="icon">📊</span><span>Balance</span>
-            </button>
-            <button class="tab-item" onclick="navigate('view-registrar', this)">
-                <span class="icon">➕</span><span>Añadir</span>
-            </button>
-            <button class="tab-item" onclick="navigate('view-detalles', this)">
-                <span class="icon">🔍</span><span>Explorar</span>
-            </button>
-            <button class="tab-item" onclick="navigate('view-historial', this)">
-                <span class="icon">🕒</span><span>Historial</span>
-            </button>
-        </nav>
+        <!-- Chivato Inteligente de Deuda -->
+        <div id="debt-indicator" class="card debt zero-debt">
+            <h3>Deuda Pendiente Ahorro</h3>
+            <p id="debt-amount">0.00 €</p>
+        </div>
+    </section>
+
+    <!-- PESTAÑA: REGISTRAR MOVIMIENTO -->
+    <section id="add" class="tab-content">
+        <form id="record-form">
+            <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" id="date" required>
+            </div>
+            <div class="form-group">
+                <label>Tipo de Movimiento</label>
+                <select id="type" onchange="updateCategories()" required>
+                    <option value="gasto">Gasto</option>
+                    <option value="ingreso">Ingreso</option>
+                    <option value="ahorro">Movimiento de Ahorro/Inversión</option>
+                </select>
+            </div>
+            <div class="form-group" id="payment-method-group">
+                <label>Origen de los fondos</label>
+                <select id="payment-method">
+                    <option value="principal">Cuenta Principal</option>
+                    <option value="liquidez">Usar Colchón de Liquidez (Genera Deuda)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Categoría</label>
+                <select id="category" required></select>
+            </div>
+            <div class="form-group">
+                <label>Importe (€)</label>
+                <input type="number" id="amount" step="0.01" min="0.01" required>
+            </div>
+            <div class="form-group">
+                <label>Descripción</label>
+                <input type="text" id="description" placeholder="Ej. Cena con amigos, Casco moto...">
+            </div>
+            <button type="submit" class="btn-primary" id="save-btn">Guardar Movimiento</button>
+        </form>
+    </section>
+
+    <!-- PESTAÑA: EXPLORAR Y FILTRAR -->
+    <section id="explore" class="tab-content">
+        <div class="filters">
+            <select id="filter-type" onchange="renderRecords()">
+                <option value="all">Todos los movimientos</option>
+                <option value="gasto">Solo Gastos</option>
+                <option value="ingreso">Solo Ingresos</option>
+                <option value="ahorro">Ahorro e Inversión</option>
+            </select>
+        </div>
+        <div id="records-list">
+            <!-- Los registros se inyectan desde JS -->
+        </div>
+    </section>
+
+    <!-- MODAL DE DETALLE Y ELIMINACIÓN -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3 id="modal-title">Detalle del Movimiento</h3>
+            <p id="modal-desc"></p>
+            <p id="modal-date"></p>
+            <p id="modal-amount"></p>
+            <p id="modal-category"></p>
+            <button class="btn-danger" id="delete-btn">Eliminar Registro</button>
+        </div>
     </div>
-    <script src="script.js?v=3"></script>
+
+    <script src="script.js"></script>
 </body>
 </html>
