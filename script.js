@@ -1,10 +1,36 @@
 // URL de tu base de datos en Google Sheets
 const API_URL = "https://script.google.com/macros/s/AKfycbzr5OECLW7wG9VF5hVdlJbm1ZwnsiyW3M3t1MPnYrS5LytGLqr923NBjGH5_j8ORdlCGw/exec";
 
-// Categorías Avanzadas
-const CAT_GASTOS = ["🛒 Supermercado", "🍔 Restaurantes/Ocio", "🚗 Transporte", "🛍️ Compras Varias", "🏠 Alquiler/Hipoteca", "⚡ Suministros (Luz, Agua)", "📱 Suscripciones", "💸 Otros Gastos"];
-const CAT_INGRESOS = ["💼 Nómina Principal", "💼 Ingreso Extra", "🔄 Devolución", "📦 Venta Segundamano", "🎁 Regalo", "📈 Rendimiento Inversión"];
-const CAT_AHORROS = ["🐷 Hucha General", "✈️ Fondo Viaje", "🚨 Fondo Emergencia", "📈 Inversión (Indexados/Bolsa)"];
+// Categorías Avanzadas Actualizadas
+const CAT_GASTOS = [
+    "🛒 Supermercado", 
+    "🍔 Restaurantes/Ocio", 
+    "🍻 Salidas", 
+    "🚗 Transporte", 
+    "🏍️ Deuda Moto", 
+    "💪 Suplementación", 
+    "🛍️ Compras Varias", 
+    "🏠 Alquiler/Hipoteca", 
+    "📱 Suscripciones", 
+    "💸 Otros Gastos"
+];
+
+const CAT_INGRESOS = [
+    "💼 Nómina Principal", 
+    "💼 Ingreso Extra", 
+    "💸 Bizum", 
+    "🔄 Devolución", 
+    "📦 Venta Segundamano", 
+    "🎁 Regalo", 
+    "📈 Rendimiento Inversión"
+];
+
+const CAT_AHORROS = [
+    "🐷 Hucha General", 
+    "✈️ Fondo Viaje", 
+    "🚨 Fondo Emergencia", 
+    "📈 Inversión (Indexados/Bolsa)"
+];
 
 let tipoActual = 'gasto';
 let filtroGraficoActual = 'gasto';
@@ -251,192 +277,4 @@ function renderListaDetalles() {
     }
 
     filtrados.forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'list-item';
-        div.setAttribute('onclick', `abrirDetalle(${m.id})`);
-        
-        const fecha = new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
-        
-        let signo = '-'; let colorClass = 'text-red';
-        if (m.tipo === 'ingreso') { signo = '+'; colorClass = 'text-green'; }
-        else if (m.tipo === 'ahorro') { signo = '→'; colorClass = 'text-blue'; }
-
-        let descPreview = "";
-        if (m.descripcion) {
-            descPreview = m.descripcion.length > 18 ? ' • ' + m.descripcion.substring(0, 18) + '...' : ' • ' + m.descripcion;
-        }
-
-        div.innerHTML = `
-            <div>
-                <div class="item-main">${m.categoria}</div>
-                <div class="item-sub">${fecha} • ${m.metodo}${descPreview}</div>
-            </div>
-            <div class="item-amount ${colorClass}">${signo}${m.cantidad.toLocaleString('es-ES', {minimumFractionDigits: 2})} €</div>
-        `;
-        contenedor.appendChild(div);
-    });
-}
-
-function renderHistorial() {
-    const contenedor = document.getElementById('historial-list');
-    contenedor.innerHTML = '';
-
-    if (movimientos.length === 0) {
-        contenedor.innerHTML = '<div class="list-item"><span class="item-main" style="color:var(--text-secondary);">Aún no hay movimientos.</span></div>';
-        return;
-    }
-
-    movimientos.slice(0, 25).forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'list-item';
-        div.setAttribute('onclick', `abrirDetalle(${m.id})`);
-        
-        const fecha = new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
-        
-        let signo = '-'; let colorClass = 'text-red';
-        if (m.tipo === 'ingreso') { signo = '+'; colorClass = 'text-green'; }
-        else if (m.tipo === 'ahorro') { signo = '→'; colorClass = 'text-blue'; }
-
-        let descPreview = "";
-        if (m.descripcion) {
-            descPreview = m.descripcion.length > 18 ? ' • ' + m.descripcion.substring(0, 18) + '...' : ' • ' + m.descripcion;
-        }
-
-        div.innerHTML = `
-            <div>
-                <div class="item-main">${m.categoria}</div>
-                <div class="item-sub">${fecha} • ${m.metodo}${descPreview}</div>
-            </div>
-            <div class="item-amount ${colorClass}">${signo}${m.cantidad.toLocaleString('es-ES', {minimumFractionDigits: 2})} €</div>
-        `;
-        contenedor.appendChild(div);
-    });
-}
-
-// MODAL Y ELIMINAR CON ENVÍO A LA NUBE
-function abrirDetalle(id) {
-    idMovimientoActivo = id;
-    const mov = movimientos.find(m => m.id === id);
-    if (!mov) return;
-
-    const fechaCompleta = new Date(mov.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    
-    let signo = '-'; let colorClass = 'text-red';
-    if (mov.tipo === 'ingreso') { signo = '+'; colorClass = 'text-green'; }
-    else if (mov.tipo === 'ahorro') { signo = ''; colorClass = 'text-blue'; }
-
-    document.getElementById('modal-cat').textContent = mov.categoria;
-    document.getElementById('modal-amount').textContent = `${signo}${mov.cantidad.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
-    document.getElementById('modal-amount').className = `modal-amount ${colorClass}`;
-    
-    document.getElementById('modal-tipo').textContent = mov.tipo;
-    document.getElementById('modal-fecha').textContent = fechaCompleta;
-    document.getElementById('modal-metodo').textContent = mov.metodo;
-    document.getElementById('modal-desc').textContent = mov.descripcion || "Sin descripción";
-
-    document.getElementById('modal-detalle').style.display = 'flex';
-}
-
-function cerrarModal() {
-    document.getElementById('modal-detalle').style.display = 'none';
-    idMovimientoActivo = null;
-}
-
-async function eliminarMovimiento() {
-    if (!idMovimientoActivo) return;
-    
-    const confirmacion = confirm("¿Estás seguro de que quieres eliminar este movimiento?");
-    if (confirmacion) {
-        const idABorrar = idMovimientoActivo; // Guardamos el ID antes de limpiar variables
-        
-        // 1. Borrado visual inmediato
-        movimientos = movimientos.filter(m => m.id !== idABorrar);
-        localStorage.setItem('myfinance_movimientos_cache', JSON.stringify(movimientos));
-        cerrarModal();
-        renderAll();
-
-        // 2. Orden de borrado a la nube
-        try {
-            await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ accion: 'eliminar', id: idABorrar })
-            });
-        } catch (error) {
-            console.error("Error al borrar en la nube:", error);
-        }
-    }
-}
-
-// BALANCE Y GRÁFICOS
-function renderBalance() {
-    let ingresos = 0; let gastos = 0; let ahorros = 0;
-    movimientos.forEach(m => {
-        if (m.tipo === 'ingreso') ingresos += m.cantidad;
-        else if (m.tipo === 'gasto') gastos += m.cantidad;
-        else if (m.tipo === 'ahorro') ahorros += m.cantidad;
-    });
-
-    const balanceLiquido = ingresos - gastos - ahorros;
-
-    document.getElementById('total-ingresos').textContent = `+${ingresos.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
-    document.getElementById('total-gastos').textContent = `-${gastos.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
-    document.getElementById('total-ahorros').textContent = `${ahorros.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
-    document.getElementById('balance-total').textContent = `${balanceLiquido.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
-}
-
-function cambiarFiltroGrafico(tipo, btnElement) {
-    filtroGraficoActual = tipo;
-    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-    btnElement.classList.add('active');
-    renderPieChart();
-}
-
-function renderPieChart() {
-    const ctx = document.getElementById('pieChart').getContext('2d');
-    const datosFiltrados = movimientos.filter(m => m.tipo === filtroGraficoActual);
-    let sumas = {};
-    
-    datosFiltrados.forEach(g => { sumas[g.categoria] = (sumas[g.categoria] || 0) + g.cantidad; });
-
-    const labels = Object.keys(sumas);
-    const data = Object.values(sumas);
-
-    let colores = ['#ff3b30', '#ff9500', '#ffcc00', '#ff2d55', '#8e8e93'];
-    if (filtroGraficoActual === 'ingreso') colores = ['#34c759', '#30b0c7', '#32ade6'];
-    if (filtroGraficoActual === 'ahorro') colores = ['#007aff', '#5856d6', '#af52de'];
-
-    if (pieChartInstancia) pieChartInstancia.destroy();
-    if (labels.length === 0) {
-        pieChartInstancia = new Chart(ctx, { type: 'doughnut', data: { labels: ['Sin Datos'], datasets: [{ data: [1], backgroundColor: ['#e5e5ea'], borderWidth: 0 }] }, options: { cutout: '75%', plugins: { tooltip: {enabled: false}, legend: {display: false} } } });
-        return;
-    }
-
-    pieChartInstancia = new Chart(ctx, {
-        type: 'doughnut',
-        data: { labels: labels, datasets: [{ data: data, backgroundColor: colores, borderWidth: 0 }] },
-        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { family: '-apple-system', size: 12 }, padding: 20 } } }, cutout: '65%' }
-    });
-}
-
-function renderBarChart() {
-    const ctx = document.getElementById('barChart').getContext('2d');
-    let ingresosTotales = 0; let gastosTotales = 0;
-    movimientos.forEach(m => {
-        if (m.tipo === 'ingreso') ingresosTotales += m.cantidad;
-        if (m.tipo === 'gasto') gastosTotales += m.cantidad;
-    });
-
-    if (barChartInstancia) barChartInstancia.destroy();
-    barChartInstancia = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: ['Flujo de Caja'],
-            datasets: [
-                { label: 'Ingresos', data: [ingresosTotales], backgroundColor: '#34c759', borderRadius: 8 },
-                { label: 'Gastos', data: [gastosTotales], backgroundColor: '#ff3b30', borderRadius: 8 }
-            ]
-        },
-        options: { responsive: true, scales: { y: { beginAtZero: true, grid: { color: '#f2f2f7' }, border: {display: false} }, x: { grid: { display: false }, border: {display: false} } }, plugins: { legend: { position: 'top', labels: { font: { family: '-apple-system' } } } } }
-    });
-}
+        const div = document
