@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mis Finanzas</title>
+    <title>MyFinance</title>
     
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=3">
     <link rel="manifest" href="manifest.json">
     
     <!-- Configuración iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Finanzas">
+    <meta name="apple-mobile-web-app-title" content="MyFinance">
     <link rel="apple-touch-icon" href="icon.png">
 
     <!-- Librería para Gráficos -->
@@ -19,38 +19,58 @@
 </head>
 <body>
     <div id="app">
-        <!-- Pantalla 1: Dashboard / Balance -->
+        <!-- Pantalla 1: Dashboard / Balance PRO -->
         <main id="view-dashboard" class="view active">
-            <h1 class="page-title">📊 Mi Balance</h1>
+            <h1 class="page-title">📊 Visión General</h1>
             
             <div class="balance-card">
-                <p class="balance-label">Balance Total</p>
+                <p class="balance-label">Disponible (Liquidez)</p>
                 <h2 id="balance-total">0,00 €</h2>
                 <div class="balance-row">
                     <div class="ingresos-box">
-                        <small>Ingresos</small>
+                        <small>Ingresos Reales</small>
                         <p id="total-ingresos" class="text-green">+0,00 €</p>
                     </div>
                     <div class="gastos-box">
-                        <small>Gastos</small>
+                        <small>Gastos Reales</small>
                         <p id="total-gastos" class="text-red">-0,00 €</p>
                     </div>
                 </div>
             </div>
 
-            <h2 class="section-title">Gastos por Categoría</h2>
+            <!-- Tarjeta de Ahorro Aislada -->
+            <div class="ahorro-card">
+                <div class="ahorro-header">
+                    <span class="icon">🐷</span>
+                    <span class="ahorro-label">Fondo de Ahorro Total</span>
+                </div>
+                <h3 id="total-ahorros" class="text-blue">0,00 €</h3>
+            </div>
+
+            <h2 class="section-title">Flujo de Caja (Ingreso vs Gasto)</h2>
             <div class="chart-container">
-                <canvas id="gastosChart"></canvas>
+                <canvas id="barChart"></canvas>
+            </div>
+
+            <h2 class="section-title">Análisis Detallado</h2>
+            <div class="filter-container">
+                <button class="filter-btn active" onclick="cambiarFiltroGrafico('gasto', this)">Gastos</button>
+                <button class="filter-btn" onclick="cambiarFiltroGrafico('ingreso', this)">Ingresos</button>
+                <button class="filter-btn" onclick="cambiarFiltroGrafico('ahorro', this)">Ahorros</button>
+            </div>
+            <div class="chart-container">
+                <canvas id="pieChart"></canvas>
             </div>
         </main>
 
         <!-- Pantalla 2: Registrar -->
         <main id="view-registrar" class="view">
-            <h1 class="page-title">✍️ Nuevo Registro</h1>
+            <h1 class="page-title">✍️ Nuevo Movimiento</h1>
             
             <div class="toggle-container">
                 <button id="btn-gasto" class="toggle-btn active" type="button">Gasto</button>
                 <button id="btn-ingreso" class="toggle-btn" type="button">Ingreso</button>
+                <button id="btn-ahorro" class="toggle-btn" type="button">Ahorro</button>
             </div>
 
             <div class="form-container">
@@ -63,16 +83,17 @@
                     <div class="input-group">
                         <label>Categoría</label>
                         <select id="select-categoria" required>
-                            <!-- Se llena con JS dependiendo si es gasto o ingreso -->
+                            <!-- Dinámico -->
                         </select>
                     </div>
 
                     <div class="input-group">
-                        <label>Método</label>
+                        <label>Método de Pago / Origen</label>
                         <select id="select-metodo" required>
-                            <option value="Tarjeta">💳 Tarjeta</option>
+                            <option value="Tarjeta">💳 Tarjeta / Cuenta Principal</option>
                             <option value="Efectivo">💵 Efectivo</option>
                             <option value="Transferencia">🏦 Transferencia / Bizum</option>
+                            <option value="Cuenta Ahorro">🐷 Cuenta Ahorro / Hucha</option>
                         </select>
                     </div>
 
@@ -92,13 +113,13 @@
             <div id="historial-list" class="list-container"></div>
         </main>
 
-        <!-- Navegación inferior iOS -->
+        <!-- Navegación -->
         <nav class="tab-bar">
             <button class="tab-item active" onclick="navigate('view-dashboard', this)">
                 <span class="icon">📊</span><span>Balance</span>
             </button>
             <button class="tab-item" onclick="navigate('view-registrar', this)">
-                <span class="icon">➕</span><span>Registrar</span>
+                <span class="icon">➕</span><span>Añadir</span>
             </button>
             <button class="tab-item" onclick="navigate('view-historial', this)">
                 <span class="icon">🕒</span><span>Historial</span>
