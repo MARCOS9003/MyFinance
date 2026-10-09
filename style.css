@@ -68,7 +68,7 @@ input, select { width: 100%; padding: 14px; font-size: 16px; border: 1px solid #
 .btn-green { background-color: var(--green); }
 .btn-blue { background-color: var(--blue); }
 
-/* Historial y Listas (Ahora clicables) */
+/* Historial y Listas */
 .list-container { background: var(--surface-color); border-radius: 16px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 .list-item { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid #e5e5ea; cursor: pointer; transition: background 0.15s; }
 .list-item:active { background: #f2f2f7; }
