@@ -29,10 +29,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
 .balance-row small { color: #a1a1a6; font-size: 12px; font-weight: 500;}
 .balance-row p { font-size: 20px; font-weight: 700; margin-top: 5px; }
 
-.ahorro-card { background: var(--surface-color); border-radius: 16px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid rgba(0,122,255,0.1);}
+/* NUEVO: Clases faltantes de Patrimonio y Deuda */
+.patrimonio-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+.ahorro-card { background: var(--surface-color); border-radius: 16px; padding: 15px 20px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid rgba(0,122,255,0.1);}
 .ahorro-header { display: flex; align-items: center; gap: 8px; }
 .ahorro-label { font-size: 15px; font-weight: 600; color: var(--text-primary); }
-#total-ahorros { font-size: 20px; font-weight: 700; margin: 0; }
+.ahorro-card h3 { font-size: 20px; font-weight: 700; margin: 0; }
+.deuda-badge { font-size: 12px; font-weight: 700; color: var(--red); background: rgba(255,59,48,.1); padding: 3px 8px; border-radius: 8px; }
 
 .text-green { color: var(--green) !important; }
 .text-red { color: var(--red) !important; }
@@ -42,7 +45,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
 .filter-box { background: var(--surface-color); padding: 15px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); display: flex; flex-wrap: wrap; gap: 10px;}
 .filter-group { flex: 1; min-width: 45%; }
 .filter-group label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;}
-.filter-group select { width: 100%; padding: 10px; font-size: 14px; background: var(--bg-color); border-radius: 8px; border: 1px solid #e5e5ea; font-weight: 500;}
+.filter-group select { width: 100%; padding: 10px; font-size: 16px; min-height: 48px; background: var(--bg-color); border-radius: 8px; border: 1px solid #e5e5ea; font-weight: 500;}
 
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
 .stat-card { color: white; padding: 20px 15px; border-radius: 16px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: background 0.3s ease;}
@@ -62,7 +65,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
 .form-container { background: var(--surface-color); padding: 20px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 .input-group { margin-bottom: 20px; }
 .input-group label { display: block; font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
-input, select { width: 100%; padding: 14px; font-size: 16px; border: 1px solid #e5e5ea; border-radius: 12px; background-color: var(--bg-color); appearance: none; }
+
+/* FIX iOS: font-size a 16px y min-height a 48px para evitar zoom y problemas de interfaz */
+input, select { width: 100%; padding: 14px; font-size: 16px; min-height: 48px; border: 1px solid #e5e5ea; border-radius: 12px; background-color: var(--bg-color); appearance: none; }
+/* Añadir una pequeña flecha a los selects ya que appearance: none la quita */
+select { background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%238e8e93%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E"); background-repeat: no-repeat; background-position: right 15px top 50%; background-size: 12px auto; padding-right: 40px; }
+
 .btn-primary { width: 100%; padding: 16px; color: white; border: none; border-radius: 12px; font-size: 17px; font-weight: 700; margin-top: 10px; transition: 0.2s; cursor: pointer; }
 .btn-red { background-color: var(--red); }
 .btn-green { background-color: var(--green); }
@@ -78,7 +86,7 @@ input, select { width: 100%; padding: 14px; font-size: 16px; border: 1px solid #
 .item-amount { font-size: 16px; font-weight: 800; }
 
 /* MODAL TICKET DETALLE */
-.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; padding: 20px; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); align-items: center; justify-content: center; }
+.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; padding: 20px; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; }
 .modal-card { background: var(--surface-color); width: 100%; max-width: 380px; border-radius: 24px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: scaleIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
