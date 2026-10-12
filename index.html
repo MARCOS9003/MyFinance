@@ -2,10 +2,10 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>MyFinance</title>
     
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=9">
     <link rel="manifest" href="manifest.json">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-title" content="MyFinance">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
 </head>
 <body>
     <div id="app">
@@ -36,7 +36,6 @@
                 </div>
             </div>
 
-            <!-- NUEVO: Tarjetas de Patrimonio Separadas -->
             <div class="patrimonio-grid">
                 <div class="ahorro-card">
                     <div class="ahorro-header">
@@ -85,7 +84,7 @@
                 <form id="form-finanzas">
                     <div class="input-group">
                         <label>Cantidad (€)</label>
-                        <input type="number" id="input-cantidad" step="0.01" placeholder="0.00" required>
+                        <input type="number" id="input-cantidad" step="0.01" min="0.01" inputmode="decimal" placeholder="0.00" required>
                     </div>
                     
                     <div class="input-group">
@@ -203,6 +202,6 @@
             </button>
         </nav>
     </div>
-    <script src="script.js?v=8"></script>
+    <script src="script.js?v=9"></script>
 </body>
 </html>
