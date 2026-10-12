@@ -1,7 +1,7 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzr5OECLW7wG9VF5hVdlJbm1ZwnsiyW3M3t1MPnYrS5LytGLqr923NBjGH5_j8ORdlCGw/exec";
 
 const CAT_GASTOS = [
-    "🛒 Supermercado", "🍔 Restaurantes/Ocio", "🍻 Salidas", "🚗 Transporte", 
+    "🛒 Supermercado", "🍔 Restaurantes/Ocio", "☕ Coffee", "🍻 Salidas", "🚗 Transporte", 
     "🏍️ Deuda Moto", "💪 Suplementación", "🛍️ Compras Varias", 
     "🏠 Alquiler/Hipoteca", "📱 Suscripciones", "💸 Otros Gastos"
 ];
@@ -11,7 +11,6 @@ const CAT_INGRESOS = [
     "📦 Venta Segundamano", "🎁 Regalo", "📈 Rendimiento Inversión"
 ];
 
-// NUEVAS CATEGORÍAS DE AHORRO
 const CAT_AHORROS = [
     "📈 Inversión (Largo Plazo)",
     "🐷 Aportación Extra (Liquidez)",
@@ -28,10 +27,32 @@ let pieChartInstancia = null;
 let barChartInstancia = null;
 let movimientos = [];
 
+// Formateador global de dinero
+function fmt(num) {
+    return Number(num).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Gestor de Seguridad
+function getToken() {
+    let token = localStorage.getItem('myfinance_token');
+    if (!token) {
+        token = prompt("🔒 Introduce tu contraseña/token para acceder a tus finanzas:");
+        if (token) localStorage.setItem('myfinance_token', token);
+    }
+    return token || "";
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     actualizarSelectCategorias();
     actualizarDesplegableCategoriasFiltro(); 
     cargarDatosDesdeGoogle();
+    
+    // Recargar datos al volver a la app si se dejó en segundo plano
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === 'visible') {
+            cargarDatosDesdeGoogle();
+        }
+    });
 });
 
 function navigate(viewId, tabElement) {
@@ -44,23 +65,60 @@ function navigate(viewId, tabElement) {
 }
 
 async function cargarDatosDesdeGoogle() {
+    // 1. Mostrar datos de la caché instantáneamente (stale-while-revalidate)
+    const cache = localStorage.getItem('myfinance_movimientos_cache');
+    if (cache) {
+        movimientos = JSON.parse(cache);
+        renderAll();
+    }
+
+    // 2. Procesar cualquier movimiento que se haya guardado sin conexión
+    await procesarColaPendientes();
+
+    // 3. Descargar datos frescos
     try {
-        const response = await fetch(API_URL);
+        const response = await fetch(`${API_URL}?token=${encodeURIComponent(getToken())}`);
         const data = await response.json();
         if (data.status === 'success') {
             movimientos = data.registros.map(row => ({
                 id: row[0], fecha: row[1], tipo: row[2],
                 cantidad: Number(row[3]), categoria: row[4],
                 metodo: row[5], descripcion: row[6] || ""
-            })).reverse();
+            }));
+            
+            // Forzar orden cronológico real
+            movimientos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); 
+            
             localStorage.setItem('myfinance_movimientos_cache', JSON.stringify(movimientos));
             renderAll();
         }
     } catch (error) {
-        console.error("Modo sin conexión:", error);
-        movimientos = JSON.parse(localStorage.getItem('myfinance_movimientos_cache')) || [];
-        renderAll();
+        console.error("Modo sin conexión detectado:", error);
     }
+}
+
+// Gestor de cola para funcionamiento Offline
+async function procesarColaPendientes() {
+    let pendientes = JSON.parse(localStorage.getItem('myfinance_pendientes')) || [];
+    if (pendientes.length === 0) return;
+
+    let fallos = [];
+    const token = getToken();
+
+    for (let peticion of pendientes) {
+        try {
+            await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ token: token, ...peticion })
+            });
+        } catch (error) {
+            fallos.push(peticion); // Si falla, lo devolvemos a la cola
+        }
+    }
+    
+    // Actualizamos la cola solo con los que hayan fallado
+    localStorage.setItem('myfinance_pendientes', JSON.stringify(fallos));
 }
 
 document.getElementById('btn-gasto').addEventListener('click', () => setTipo('gasto'));
@@ -109,6 +167,9 @@ function actualizarSelectCategorias() {
 
 document.getElementById('form-finanzas').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btnGuardar = document.getElementById('btn-guardar');
+    btnGuardar.disabled = true; // Evitar doble toque
+
     const cantidad = parseFloat(document.getElementById('input-cantidad').value);
     const categoria = document.getElementById('select-categoria').value;
     const metodo = document.getElementById('select-metodo').value;
@@ -122,6 +183,7 @@ document.getElementById('form-finanzas').addEventListener('submit', async (e) =>
         metodo: metodo, descripcion: descripcion
     };
 
+    // Actualización inmediata local
     movimientos.push(nuevoMovimiento);
     movimientos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); 
     localStorage.setItem('myfinance_movimientos_cache', JSON.stringify(movimientos));
@@ -130,14 +192,15 @@ document.getElementById('form-finanzas').addEventListener('submit', async (e) =>
     document.getElementById('input-fecha').value = ""; 
     renderAll();
     navigate('view-dashboard', document.querySelectorAll('.tab-item')[0]);
+    btnGuardar.disabled = false;
 
-    try {
-        await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ accion: 'nuevo', ...nuevoMovimiento })
-        });
-    } catch (error) { console.error("Error nube:", error); }
+    // Añadir a la cola de sincronización y procesar
+    const peticion = { accion: 'nuevo', ...nuevoMovimiento };
+    let pendientes = JSON.parse(localStorage.getItem('myfinance_pendientes')) || [];
+    pendientes.push(peticion);
+    localStorage.setItem('myfinance_pendientes', JSON.stringify(pendientes));
+    
+    procesarColaPendientes();
 });
 
 function renderAll() {
@@ -149,38 +212,32 @@ function renderAll() {
     renderListaDetalles(); 
 }
 
-// ----------------------------------------------------
-// EL NUEVO CEREBRO FINANCIERO (INVERSIÓN VS LIQUIDEZ)
-// ----------------------------------------------------
 function renderBalance() {
     let ingresos = 0; 
     let gastosCorrientes = 0; 
-    let ahorrosTotales = 0; // Dinero que sale de la cuenta corriente hacia ahorros
+    let ahorrosTotales = 0; 
 
     let aportacionesLiquidez = 0; 
     let totalInversion = 0;
 
-    let gastosConAhorro = 0; // Préstamos a ti mismo
-    let devolucionesDeuda = 0; // Devoluciones de préstamos
+    let gastosConAhorro = 0; 
+    let devolucionesDeuda = 0; 
 
     movimientos.forEach(m => {
         if (m.tipo === 'ingreso') {
             ingresos += m.cantidad;
         } else if (m.tipo === 'gasto') {
-            // Si el método de pago es tu hucha, no afecta a tu cuenta corriente
             if (m.metodo === 'Cuenta Ahorro') {
                 gastosConAhorro += m.cantidad;
             } else {
                 gastosCorrientes += m.cantidad;
             }
         } else if (m.tipo === 'ahorro') {
-            ahorrosTotales += m.cantidad; // Todo ahorro resta de tu Nómina/Cuenta Principal
+            ahorrosTotales += m.cantidad; 
 
-            // Si es inversión pura (incluido el histórico antiguo que tuviese la palabra Inversión)
             if (m.categoria.includes('Inversión')) {
                 totalInversion += m.cantidad;
             } else {
-                // Todo lo demás (Fondo Viaje, Emergencia, Extra, Reponer Deuda) engorda tu liquidez
                 aportacionesLiquidez += m.cantidad;
                 if (m.categoria === '🔄 Reponer Deuda Ahorro') {
                     devolucionesDeuda += m.cantidad;
@@ -189,35 +246,27 @@ function renderBalance() {
         }
     });
 
-    // 1. Dinero real en tu banco hoy para gastar (Nómina - Gastos Diarios - Lo que has apartado)
     const balanceLiquido = ingresos - gastosCorrientes - ahorrosTotales;
-
-    // 2. Dinero en tu colchón (Lo aportado - lo que has gastado directamente de ahí)
     const cuentaAhorro = aportacionesLiquidez - gastosConAhorro;
-
-    // 3. El contador de deuda (tope en 0)
     let deudaPendiente = gastosConAhorro - devolucionesDeuda;
     if (deudaPendiente < 0) deudaPendiente = 0;
 
-    // Visuales Dashboard
-    document.getElementById('total-ingresos').textContent = `+${ingresos.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
+    document.getElementById('total-ingresos').textContent = `+${fmt(ingresos)} €`;
     const gastosTotalesPantalla = gastosCorrientes + gastosConAhorro;
-    document.getElementById('total-gastos').textContent = `-${gastosTotalesPantalla.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
-    document.getElementById('balance-total').textContent = `${balanceLiquido.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
+    document.getElementById('total-gastos').textContent = `-${fmt(gastosTotalesPantalla)} €`;
+    document.getElementById('balance-total').textContent = `${fmt(balanceLiquido)} €`;
 
-    document.getElementById('total-inversion').textContent = `${totalInversion.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
-    document.getElementById('total-liquidez').textContent = `${cuentaAhorro.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
+    document.getElementById('total-inversion').textContent = `${fmt(totalInversion)} €`;
+    document.getElementById('total-liquidez').textContent = `${fmt(cuentaAhorro)} €`;
 
-    // Chivato Inteligente de Deuda
     const deudaEl = document.getElementById('deuda-pendiente');
     if (deudaPendiente > 0) {
         deudaEl.style.display = 'inline-block';
-        deudaEl.textContent = `Deuda: -${deudaPendiente.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
+        deudaEl.textContent = `Deuda: -${fmt(deudaPendiente)} €`;
     } else {
         deudaEl.style.display = 'none';
     }
 }
-// ----------------------------------------------------
 
 function actualizarDesplegableCategoriasFiltro() {
     const tipo = document.getElementById('filtro-tipo').value;
@@ -256,6 +305,28 @@ function actualizarFiltroMeses() {
     selectMes.value = valorActual; 
 }
 
+function crearItemLista(m) {
+    const div = document.createElement('div');
+    div.className = 'list-item';
+    div.setAttribute('onclick', `abrirDetalle('${m.id}')`); // Pasamos ID como texto preventivo
+    const fecha = new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+    
+    let signo = '-'; let colorClass = 'text-red';
+    if (m.tipo === 'ingreso') { signo = '+'; colorClass = 'text-green'; }
+    else if (m.tipo === 'ahorro') { signo = '→'; colorClass = 'text-blue'; }
+    
+    let descPreview = m.descripcion ? (m.descripcion.length > 18 ? ' • ' + m.descripcion.substring(0, 18) + '...' : ' • ' + m.descripcion) : "";
+    
+    div.innerHTML = `
+        <div>
+            <div class="item-main">${m.categoria}</div>
+            <div class="item-sub">${fecha} • ${m.metodo}${descPreview}</div>
+        </div>
+        <div class="item-amount ${colorClass}">${signo}${fmt(m.cantidad)} €</div>
+    `;
+    return div;
+}
+
 function renderListaDetalles() {
     const tipo = document.getElementById('filtro-tipo').value;
     const cat = document.getElementById('filtro-categoria').value;
@@ -277,7 +348,7 @@ function renderListaDetalles() {
     });
 
     document.getElementById('det-total-movs').textContent = filtrados.length;
-    document.getElementById('det-total-dinero').textContent = `${sumaTotal.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
+    document.getElementById('det-total-dinero').textContent = `${fmt(sumaTotal)} €`;
 
     const cardSuma = document.getElementById('card-total-filtro');
     if (tipo === 'gasto') cardSuma.style.background = 'linear-gradient(135deg, #ff3b30, #ff2d55)';
@@ -291,24 +362,7 @@ function renderListaDetalles() {
         contenedor.innerHTML = '<div class="list-item"><span class="item-main" style="color:var(--text-secondary);">No hay resultados.</span></div>';
         return;
     }
-    filtrados.forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'list-item';
-        div.setAttribute('onclick', `abrirDetalle(${m.id})`);
-        const fecha = new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
-        let signo = '-'; let colorClass = 'text-red';
-        if (m.tipo === 'ingreso') { signo = '+'; colorClass = 'text-green'; }
-        else if (m.tipo === 'ahorro') { signo = '→'; colorClass = 'text-blue'; }
-        let descPreview = m.descripcion ? (m.descripcion.length > 18 ? ' • ' + m.descripcion.substring(0, 18) + '...' : ' • ' + m.descripcion) : "";
-        div.innerHTML = `
-            <div>
-                <div class="item-main">${m.categoria}</div>
-                <div class="item-sub">${fecha} • ${m.metodo}${descPreview}</div>
-            </div>
-            <div class="item-amount ${colorClass}">${signo}${m.cantidad.toLocaleString('es-ES', {minimumFractionDigits: 2})} €</div>
-        `;
-        contenedor.appendChild(div);
-    });
+    filtrados.forEach(m => contenedor.appendChild(crearItemLista(m)));
 }
 
 function renderHistorial() {
@@ -318,37 +372,22 @@ function renderHistorial() {
         contenedor.innerHTML = '<div class="list-item"><span class="item-main" style="color:var(--text-secondary);">Aún no hay movimientos.</span></div>';
         return;
     }
-    movimientos.slice(0, 25).forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'list-item';
-        div.setAttribute('onclick', `abrirDetalle(${m.id})`);
-        const fecha = new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
-        let signo = '-'; let colorClass = 'text-red';
-        if (m.tipo === 'ingreso') { signo = '+'; colorClass = 'text-green'; }
-        else if (m.tipo === 'ahorro') { signo = '→'; colorClass = 'text-blue'; }
-        let descPreview = m.descripcion ? (m.descripcion.length > 18 ? ' • ' + m.descripcion.substring(0, 18) + '...' : ' • ' + m.descripcion) : "";
-        div.innerHTML = `
-            <div>
-                <div class="item-main">${m.categoria}</div>
-                <div class="item-sub">${fecha} • ${m.metodo}${descPreview}</div>
-            </div>
-            <div class="item-amount ${colorClass}">${signo}${m.cantidad.toLocaleString('es-ES', {minimumFractionDigits: 2})} €</div>
-        `;
-        contenedor.appendChild(div);
-    });
+    movimientos.slice(0, 25).forEach(m => contenedor.appendChild(crearItemLista(m)));
 }
 
 function abrirDetalle(id) {
     idMovimientoActivo = id;
-    const mov = movimientos.find(m => m.id === id);
+    // Fix BUG: Comparar forzando a String
+    const mov = movimientos.find(m => String(m.id) === String(id));
     if (!mov) return;
+    
     const fechaCompleta = new Date(mov.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     let signo = '-'; let colorClass = 'text-red';
     if (mov.tipo === 'ingreso') { signo = '+'; colorClass = 'text-green'; }
     else if (mov.tipo === 'ahorro') { signo = ''; colorClass = 'text-blue'; }
 
     document.getElementById('modal-cat').textContent = mov.categoria;
-    document.getElementById('modal-amount').textContent = `${signo}${mov.cantidad.toLocaleString('es-ES', {minimumFractionDigits: 2})} €`;
+    document.getElementById('modal-amount').textContent = `${signo}${fmt(mov.cantidad)} €`;
     document.getElementById('modal-amount').className = `modal-amount ${colorClass}`;
     document.getElementById('modal-tipo').textContent = mov.tipo;
     document.getElementById('modal-fecha').textContent = fechaCompleta;
@@ -362,21 +401,26 @@ function cerrarModal() {
     idMovimientoActivo = null;
 }
 
+// Cerrar modal al pulsar fuera de él
+document.getElementById('modal-detalle').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModal();
+});
+
 async function eliminarMovimiento() {
     if (!idMovimientoActivo) return;
     if (confirm("¿Estás seguro de que quieres eliminar este movimiento?")) {
         const idABorrar = idMovimientoActivo;
-        movimientos = movimientos.filter(m => m.id !== idABorrar);
+        movimientos = movimientos.filter(m => String(m.id) !== String(idABorrar));
         localStorage.setItem('myfinance_movimientos_cache', JSON.stringify(movimientos));
         cerrarModal();
         renderAll();
-        try {
-            await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ accion: 'eliminar', id: idABorrar })
-            });
-        } catch (error) { console.error("Error al borrar:", error); }
+        
+        const peticionBorrado = { accion: 'eliminar', id: idABorrar };
+        let pendientes = JSON.parse(localStorage.getItem('myfinance_pendientes')) || [];
+        pendientes.push(peticionBorrado);
+        localStorage.setItem('myfinance_pendientes', JSON.stringify(pendientes));
+        
+        procesarColaPendientes();
     }
 }
 
@@ -395,9 +439,9 @@ function renderPieChart() {
     const labels = Object.keys(sumas);
     const data = Object.values(sumas);
 
-    let colores = ['#ff3b30', '#ff9500', '#ffcc00', '#ff2d55', '#8e8e93', '#d5a6bd', '#a2c4c9', '#b4a7d6', '#f9cb9c', '#e06666'];
+    let colores = ['#ff3b30', '#ff9500', '#ffcc00', '#ff2d55', '#8e8e93', '#d5a6bd', '#a2c4c9', '#b4a7d6', '#f9cb9c', '#e06666', '#a1887f'];
     if (filtroGraficoActual === 'ingreso') colores = ['#34c759', '#30b0c7', '#32ade6', '#6aa84f', '#8fce00', '#274e13'];
-    if (filtroGraficoActual === 'ahorro') colores = ['#007aff', '#5856d6', '#af52de', '#1155cc', '#32ade6']; // Más colores por las nuevas subcategorías
+    if (filtroGraficoActual === 'ahorro') colores = ['#007aff', '#5856d6', '#af52de', '#1155cc', '#32ade6']; 
 
     if (pieChartInstancia) pieChartInstancia.destroy();
     if (labels.length === 0) {
