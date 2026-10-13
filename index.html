@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>MyFinance</title>
     
-    <link rel="stylesheet" href="style.css?v=11">
+    <link rel="stylesheet" href="style.css?v=12">
     <link rel="manifest" href="manifest.json">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -80,15 +80,6 @@
                 <button id="btn-ahorro" class="toggle-btn" type="button">Ahorro</button>
             </div>
 
-            <!-- Registro Mágico con IA -->
-            <div class="ia-container" style="background: linear-gradient(135deg, #f0f4ff, #e6e9fa); padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #d0d7ff;">
-                <label style="display: block; font-size: 13px; font-weight: 700; color: #5856d6; margin-bottom: 8px;">✨ Registro Mágico con IA</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="input-magico" placeholder="Ej: Dos cafés con Nacho pagados en efectivo" style="flex: 1; min-height: 40px; padding: 10px; font-size: 15px; border-radius: 10px; border: 1px solid #c7cfff;">
-                    <button type="button" onclick="procesarMagiaIA()" id="btn-magia" style="background: #5856d6; color: white; border: none; border-radius: 10px; padding: 0 15px; font-weight: bold; cursor: pointer;">Procesar</button>
-                </div>
-            </div>
-
             <div class="form-container">
                 <form id="form-finanzas">
                     <div class="input-group">
@@ -126,7 +117,7 @@
             </div>
         </main>
 
-        <!-- Pantalla 3: Explorador / Detalles Avanzados -->
+        <!-- Pantalla 3: Explorador -->
         <main id="view-detalles" class="view">
             <h1 class="page-title">🔍 Explorador</h1>
             
@@ -175,6 +166,22 @@
             <div id="historial-list" class="list-container"></div>
         </main>
 
+        <!-- Pantalla 5: Asistente IA -->
+        <main id="view-chat" class="view">
+            <h1 class="page-title">💬 Asistente IA</h1>
+            
+            <div id="chat-messages" style="background: var(--surface-color); border-radius: 16px; padding: 15px; height: 55vh; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+                <div style="background: #f0f4ff; padding: 12px; border-radius: 12px; align-self: flex-start; max-width: 85%; border: 1px solid #d0d7ff;">
+                    <span style="font-size: 15px; color: #1c1c1e;">¡Hola! Soy tu asistente financiero. Analizo tus datos al instante. ¿Qué quieres saber sobre tus gastos o ingresos?</span>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; padding-bottom: 20px;">
+                <input type="text" id="input-chat" placeholder="Ej: ¿Cuánto he gastado en ocio?" style="flex: 1; min-height: 48px; border-radius: 12px; border: 1px solid #e5e5ea; padding: 0 15px;">
+                <button type="button" onclick="enviarMensajeChat()" id="btn-chat" style="background: #5856d6; color: white; border: none; border-radius: 12px; padding: 0 20px; font-weight: bold; cursor: pointer;">Enviar</button>
+            </div>
+        </main>
+
         <!-- MODAL TICKET DETALLE -->
         <div id="modal-detalle" class="modal" style="display: none;">
             <div class="modal-card">
@@ -198,26 +205,28 @@
             </div>
         </div>
 
-        <!-- Navegación a 4 botones -->
+        <!-- Navegación a 5 botones -->
         <nav class="tab-bar">
-            <button class="tab-item active" onclick="navigate('view-dashboard', this)">
+            <button class="tab-item active" style="width: 20%;" onclick="navigate('view-dashboard', this)">
                 <span class="icon">📊</span><span>Balance</span>
             </button>
-            <button class="tab-item" onclick="navigate('view-registrar', this)">
+            <button class="tab-item" style="width: 20%;" onclick="navigate('view-registrar', this)">
                 <span class="icon">➕</span><span>Añadir</span>
             </button>
-            <button class="tab-item" onclick="navigate('view-detalles', this)">
+            <button class="tab-item" style="width: 20%;" onclick="navigate('view-detalles', this)">
                 <span class="icon">🔍</span><span>Explorar</span>
             </button>
-            <button class="tab-item" onclick="navigate('view-historial', this)">
+            <button class="tab-item" style="width: 20%;" onclick="navigate('view-historial', this)">
                 <span class="icon">🕒</span><span>Historial</span>
+            </button>
+            <button class="tab-item" style="width: 20%;" onclick="navigate('view-chat', this)">
+                <span class="icon">💬</span><span>IA</span>
             </button>
         </nav>
     </div>
 
-    <script src="script.js?v=11"></script>
+    <script src="script.js?v=12"></script>
     <script>
-        // Registrar el Service Worker para modo offline real
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
