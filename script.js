@@ -8,35 +8,31 @@ const CAT_GASTOS = [
 
 const CAT_INGRESOS = [
     "💼 Nómina Principal", "💼 Ingreso Extra", "💸 Bizum", "🔄 Devolución", 
-    "📦 Venta Segundamano", "🎁 Regalo", "📈 Rendimiento Inversión"
+    "📦 Venta Segundamano", "🎁 Regalo", "📈 Rendimiento Inversión", "💰 Saldo Inicial"
 ];
 
 const CAT_AHORROS = [
-    "📈 Inversión (Largo Plazo)",
-    "🐷 Aportación Extra (Liquidez)",
-    "🔄 Reponer Deuda Ahorro",
-    "✈️ Fondo Viaje",
-    "🚨 Fondo Emergencia"
+    "📈 Inversión (Largo Plazo)", "🐷 Aportación Extra (Liquidez)",
+    "🔄 Reponer Deuda Ahorro", "✈️ Fondo Viaje", "🚨 Fondo Emergencia"
 ];
 
 let tipoActual = 'gasto';
 let filtroGraficoActual = 'gasto';
 let idMovimientoActivo = null; 
+let idEditando = null; // NUEVO: Controla si estamos creando o editando
 
 let pieChartInstancia = null;
 let barChartInstancia = null;
 let movimientos = [];
 
-// Formateador global de dinero
 function fmt(num) {
     return Number(num).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Gestor de Seguridad
 function getToken() {
     let token = localStorage.getItem('myfinance_token');
     if (!token) {
-        token = prompt("🔒 Introduce tu contraseña/token para acceder a tus finanzas:");
+        token = prompt("🔒 Introduce tu contraseña/token:");
         if (token) localStorage.setItem('myfinance_token', token);
     }
     return token || "";
@@ -47,11 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
     actualizarDesplegableCategoriasFiltro(); 
     cargarDatosDesdeGoogle();
     
-    // Recargar datos al volver a la app si se dejó en segundo plano
     document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === 'visible') {
-            cargarDatosDesdeGoogle();
-        }
+        if (document.visibilityState === 'visible') cargarDatosDesdeGoogle();
     });
 });
 
@@ -62,20 +55,25 @@ function navigate(viewId, tabElement) {
         document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
         tabElement.classList.add('active');
     }
+    
+    // Si salimos de la pantalla de registrar, cancelamos cualquier edición a medias
+    if (viewId !== 'view-registrar') {
+        document.getElementById('form-finanzas').reset();
+        idEditando = null;
+        document.getElementById('titulo-registrar').textContent = "✍️ Nuevo Movimiento";
+        setTipo('gasto');
+    }
 }
 
 async function cargarDatosDesdeGoogle() {
-    // 1. Mostrar datos de la caché instantáneamente (stale-while-revalidate)
     const cache = localStorage.getItem('myfinance_movimientos_cache');
     if (cache) {
         movimientos = JSON.parse(cache);
         renderAll();
     }
 
-    // 2. Procesar cualquier movimiento que se haya guardado sin conexión
     await procesarColaPendientes();
 
-    // 3. Descargar datos frescos
     try {
         const response = await fetch(`${API_URL}?token=${encodeURIComponent(getToken())}`);
         const data = await response.json();
@@ -86,18 +84,13 @@ async function cargarDatosDesdeGoogle() {
                 metodo: row[5], descripcion: row[6] || ""
             }));
             
-            // Forzar orden cronológico real
             movimientos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); 
-            
             localStorage.setItem('myfinance_movimientos_cache', JSON.stringify(movimientos));
             renderAll();
         }
-    } catch (error) {
-        console.error("Modo sin conexión detectado:", error);
-    }
+    } catch (error) { console.error("Offline:", error); }
 }
 
-// Gestor de cola para funcionamiento Offline
 async function procesarColaPendientes() {
     let pendientes = JSON.parse(localStorage.getItem('myfinance_pendientes')) || [];
     if (pendientes.length === 0) return;
@@ -112,12 +105,8 @@ async function procesarColaPendientes() {
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({ token: token, ...peticion })
             });
-        } catch (error) {
-            fallos.push(peticion); // Si falla, lo devolvemos a la cola
-        }
+        } catch (error) { fallos.push(peticion); }
     }
-    
-    // Actualizamos la cola solo con los que hayan fallado
     localStorage.setItem('myfinance_pendientes', JSON.stringify(fallos));
 }
 
@@ -138,15 +127,15 @@ function setTipo(tipo) {
 
     if (tipo === 'gasto') {
         btnGasto.classList.add('active');
-        btnGuardar.textContent = 'Registrar Gasto';
+        btnGuardar.textContent = idEditando ? '💾 Guardar Cambios' : 'Registrar Gasto';
         btnGuardar.className = 'btn-primary btn-red';
     } else if (tipo === 'ingreso') {
         btnIngreso.classList.add('active');
-        btnGuardar.textContent = 'Registrar Ingreso';
+        btnGuardar.textContent = idEditando ? '💾 Guardar Cambios' : 'Registrar Ingreso';
         btnGuardar.className = 'btn-primary btn-green';
     } else {
         btnAhorro.classList.add('active');
-        btnGuardar.textContent = 'Guardar Ahorro / Inversión';
+        btnGuardar.textContent = idEditando ? '💾 Guardar Cambios' : 'Guardar Ahorro';
         btnGuardar.className = 'btn-primary btn-blue';
     }
     actualizarSelectCategorias();
@@ -154,6 +143,7 @@ function setTipo(tipo) {
 
 function actualizarSelectCategorias() {
     const select = document.getElementById('select-categoria');
+    const valorPrevio = select.value;
     select.innerHTML = '';
     let lista = CAT_GASTOS;
     if (tipoActual === 'ingreso') lista = CAT_INGRESOS;
@@ -163,28 +153,40 @@ function actualizarSelectCategorias() {
         opt.value = cat; opt.textContent = cat;
         select.appendChild(opt);
     });
+    // Intentar mantener la categoría seleccionada si existe en la nueva lista
+    if (lista.includes(valorPrevio)) select.value = valorPrevio;
 }
 
 document.getElementById('form-finanzas').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btnGuardar = document.getElementById('btn-guardar');
-    btnGuardar.disabled = true; // Evitar doble toque
+    btnGuardar.disabled = true;
 
     const cantidad = parseFloat(document.getElementById('input-cantidad').value);
     const categoria = document.getElementById('select-categoria').value;
     const metodo = document.getElementById('select-metodo').value;
     const descripcion = document.getElementById('input-descripcion').value;
     const fechaManual = document.getElementById('input-fecha').value;
+    
     const fechaRegistro = fechaManual ? new Date(fechaManual).toISOString() : new Date().toISOString();
+    let peticion;
 
-    const nuevoMovimiento = {
-        id: Date.now(), fecha: fechaRegistro, tipo: tipoActual,
-        cantidad: cantidad, categoria: categoria,
-        metodo: metodo, descripcion: descripcion
-    };
+    if (idEditando) {
+        // MODO EDICIÓN
+        const index = movimientos.findIndex(m => String(m.id) === String(idEditando));
+        if (index !== -1) {
+            movimientos[index] = { id: idEditando, fecha: fechaRegistro, tipo: tipoActual, cantidad, categoria, metodo, descripcion };
+            peticion = { accion: 'editar', ...movimientos[index] };
+        }
+        idEditando = null;
+        document.getElementById('titulo-registrar').textContent = "✍️ Nuevo Movimiento";
+    } else {
+        // MODO CREACIÓN
+        const nuevoMovimiento = { id: Date.now(), fecha: fechaRegistro, tipo: tipoActual, cantidad, categoria, metodo, descripcion };
+        movimientos.push(nuevoMovimiento);
+        peticion = { accion: 'nuevo', ...nuevoMovimiento };
+    }
 
-    // Actualización inmediata local
-    movimientos.push(nuevoMovimiento);
     movimientos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); 
     localStorage.setItem('myfinance_movimientos_cache', JSON.stringify(movimientos));
     
@@ -194,14 +196,36 @@ document.getElementById('form-finanzas').addEventListener('submit', async (e) =>
     navigate('view-dashboard', document.querySelectorAll('.tab-item')[0]);
     btnGuardar.disabled = false;
 
-    // Añadir a la cola de sincronización y procesar
-    const peticion = { accion: 'nuevo', ...nuevoMovimiento };
+    // Añadir a la cola y procesar
     let pendientes = JSON.parse(localStorage.getItem('myfinance_pendientes')) || [];
     pendientes.push(peticion);
     localStorage.setItem('myfinance_pendientes', JSON.stringify(pendientes));
     
     procesarColaPendientes();
 });
+
+// NUEVO: Función para pre-rellenar el formulario
+function prepararEdicion() {
+    const mov = movimientos.find(m => String(m.id) === String(idMovimientoActivo));
+    if (!mov) return;
+    
+    cerrarModal();
+    navigate('view-registrar', document.querySelectorAll('.tab-item')[1]);
+    
+    idEditando = mov.id;
+    document.getElementById('titulo-registrar').textContent = "✏️ Editar Movimiento";
+    
+    setTipo(mov.tipo);
+    document.getElementById('input-cantidad').value = mov.cantidad;
+    document.getElementById('select-categoria').value = mov.categoria;
+    document.getElementById('select-metodo').value = mov.metodo;
+    document.getElementById('input-descripcion').value = mov.descripcion;
+    
+    // Formatear la fecha ISO para que el input type="datetime-local" la entienda
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(new Date(mov.fecha) - tzoffset)).toISOString().slice(0, 16);
+    document.getElementById('input-fecha').value = localISOTime;
+}
 
 function renderAll() {
     renderBalance();
@@ -213,35 +237,22 @@ function renderAll() {
 }
 
 function renderBalance() {
-    let ingresos = 0; 
-    let gastosCorrientes = 0; 
-    let ahorrosTotales = 0; 
-
-    let aportacionesLiquidez = 0; 
-    let totalInversion = 0;
-
-    let gastosConAhorro = 0; 
-    let devolucionesDeuda = 0; 
+    let ingresos = 0; let gastosCorrientes = 0; let ahorrosTotales = 0; 
+    let aportacionesLiquidez = 0; let totalInversion = 0;
+    let gastosConAhorro = 0; let devolucionesDeuda = 0; 
 
     movimientos.forEach(m => {
         if (m.tipo === 'ingreso') {
             ingresos += m.cantidad;
         } else if (m.tipo === 'gasto') {
-            if (m.metodo === 'Cuenta Ahorro') {
-                gastosConAhorro += m.cantidad;
-            } else {
-                gastosCorrientes += m.cantidad;
-            }
+            if (m.metodo === 'Cuenta Ahorro') gastosConAhorro += m.cantidad;
+            else gastosCorrientes += m.cantidad;
         } else if (m.tipo === 'ahorro') {
             ahorrosTotales += m.cantidad; 
-
-            if (m.categoria.includes('Inversión')) {
-                totalInversion += m.cantidad;
-            } else {
+            if (m.categoria.includes('Inversión')) totalInversion += m.cantidad;
+            else {
                 aportacionesLiquidez += m.cantidad;
-                if (m.categoria === '🔄 Reponer Deuda Ahorro') {
-                    devolucionesDeuda += m.cantidad;
-                }
+                if (m.categoria === '🔄 Reponer Deuda Ahorro') devolucionesDeuda += m.cantidad;
             }
         }
     });
@@ -255,7 +266,6 @@ function renderBalance() {
     const gastosTotalesPantalla = gastosCorrientes + gastosConAhorro;
     document.getElementById('total-gastos').textContent = `-${fmt(gastosTotalesPantalla)} €`;
     document.getElementById('balance-total').textContent = `${fmt(balanceLiquido)} €`;
-
     document.getElementById('total-inversion').textContent = `${fmt(totalInversion)} €`;
     document.getElementById('total-liquidez').textContent = `${fmt(cuentaAhorro)} €`;
 
@@ -267,6 +277,10 @@ function renderBalance() {
         deudaEl.style.display = 'none';
     }
 }
+
+// ... EL RESTO DE FUNCIONES (actualizarDesplegableCategoriasFiltro, actualizarFiltroMeses, 
+// crearItemLista, renderListaDetalles, renderHistorial, abrirDetalle, cerrarModal)
+// SE MANTIENEN EXACTAMENTE IGUAL QUE EN EL CÓDIGO ANTERIOR ...
 
 function actualizarDesplegableCategoriasFiltro() {
     const tipo = document.getElementById('filtro-tipo').value;
@@ -308,7 +322,7 @@ function actualizarFiltroMeses() {
 function crearItemLista(m) {
     const div = document.createElement('div');
     div.className = 'list-item';
-    div.setAttribute('onclick', `abrirDetalle('${m.id}')`); // Pasamos ID como texto preventivo
+    div.setAttribute('onclick', `abrirDetalle('${m.id}')`);
     const fecha = new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
     
     let signo = '-'; let colorClass = 'text-red';
@@ -377,7 +391,6 @@ function renderHistorial() {
 
 function abrirDetalle(id) {
     idMovimientoActivo = id;
-    // Fix BUG: Comparar forzando a String
     const mov = movimientos.find(m => String(m.id) === String(id));
     if (!mov) return;
     
@@ -401,7 +414,6 @@ function cerrarModal() {
     idMovimientoActivo = null;
 }
 
-// Cerrar modal al pulsar fuera de él
 document.getElementById('modal-detalle').addEventListener('click', function(e) {
     if (e.target === this) cerrarModal();
 });
