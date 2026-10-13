@@ -220,48 +220,75 @@ function prepararEdicion() {
     document.getElementById('input-fecha').value = localISOTime;
 }
 
-// === FUNCIÓN DE REGISTRO MÁGICO (IA) ===
-async function procesarMagiaIA() {
-    const inputMagico = document.getElementById('input-magico');
-    const btnMagia = document.getElementById('btn-magia');
-    const texto = inputMagico.value.trim();
+// === CHAT FINANCIERO CON CLAUDE ===
+async function enviarMensajeChat() {
+    const inputChat = document.getElementById('input-chat');
+    const btnChat = document.getElementById('btn-chat');
+    const contenedor = document.getElementById('chat-messages');
+    const pregunta = inputChat.value.trim();
     
-    if (!texto) return;
+    if (!pregunta) return;
 
-    btnMagia.textContent = "⏳";
-    btnMagia.disabled = true;
+    const divUser = document.createElement('div');
+    divUser.style = "background: var(--blue); color: white; padding: 12px; border-radius: 12px; align-self: flex-end; max-width: 85%;";
+    divUser.innerHTML = `<span style="font-size: 15px;">${pregunta}</span>`;
+    contenedor.appendChild(divUser);
+    
+    inputChat.value = "";
+    contenedor.scrollTop = contenedor.scrollHeight;
+
+    btnChat.textContent = "⏳";
+    btnChat.disabled = true;
 
     try {
+        const datosOptimizados = movimientos.map(m => ({
+            f: m.fecha.substring(0, 7), 
+            t: m.tipo,
+            c: m.cantidad,
+            cat: m.categoria
+        }));
+
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({ 
                 token: getToken(), 
-                accion: 'ia_magia', 
-                textoUsuario: texto 
+                accion: 'chat_ia', 
+                preguntaUsuario: pregunta,
+                datosFinancieros: datosOptimizados
             })
         });
 
         const resultado = await response.json();
 
-        if (resultado.cantidad) {
-            setTipo('gasto'); 
-            document.getElementById('input-cantidad').value = resultado.cantidad;
-            document.getElementById('select-categoria').value = resultado.categoria || "💸 Otros Gastos";
-            document.getElementById('select-metodo').value = resultado.metodo || "Tarjeta";
-            document.getElementById('input-descripcion').value = resultado.descripcion || texto;
-            
-            inputMagico.value = "";
+        const divIA = document.createElement('div');
+        divIA.style = "background: #f0f4ff; padding: 12px; border-radius: 12px; align-self: flex-start; max-width: 85%; border: 1px solid #d0d7ff;";
+        
+        if (resultado.status === 'success') {
+            const textoFormateado = resultado.respuesta.replace(/\n/g, '<br>');
+            divIA.innerHTML = `<span style="font-size: 15px; color: #1c1c1e; line-height: 1.4;">${textoFormateado}</span>`;
+        } else {
+            divIA.innerHTML = `<span style="font-size: 15px; color: var(--red);">Error: ${resultado.message}</span>`;
         }
+        
+        contenedor.appendChild(divIA);
+
     } catch (error) {
-        console.error("Error al procesar la IA:", error);
-        alert("No se ha podido procesar este gasto. Intenta revisar tu clave de Claude.");
+        const divError = document.createElement('div');
+        divError.style = "background: #ffe5e5; padding: 12px; border-radius: 12px; align-self: flex-start; max-width: 85%; border: 1px solid #ffcccc;";
+        divError.innerHTML = `<span style="font-size: 15px; color: var(--red);">Error de conexión. Inténtalo de nuevo.</span>`;
+        contenedor.appendChild(divError);
     } finally {
-        btnMagia.textContent = "Procesar";
-        btnMagia.disabled = false;
+        btnChat.textContent = "Enviar";
+        btnChat.disabled = false;
+        contenedor.scrollTop = contenedor.scrollHeight;
     }
 }
-// ==========================================
+
+document.getElementById('input-chat').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') enviarMensajeChat();
+});
+// ===================================
 
 function renderAll() {
     renderBalance();
