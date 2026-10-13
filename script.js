@@ -19,7 +19,7 @@ const CAT_AHORROS = [
 let tipoActual = 'gasto';
 let filtroGraficoActual = 'gasto';
 let idMovimientoActivo = null; 
-let idEditando = null; // NUEVO: Controla si estamos creando o editando
+let idEditando = null; 
 
 let pieChartInstancia = null;
 let barChartInstancia = null;
@@ -56,7 +56,6 @@ function navigate(viewId, tabElement) {
         tabElement.classList.add('active');
     }
     
-    // Si salimos de la pantalla de registrar, cancelamos cualquier edición a medias
     if (viewId !== 'view-registrar') {
         document.getElementById('form-finanzas').reset();
         idEditando = null;
@@ -153,7 +152,6 @@ function actualizarSelectCategorias() {
         opt.value = cat; opt.textContent = cat;
         select.appendChild(opt);
     });
-    // Intentar mantener la categoría seleccionada si existe en la nueva lista
     if (lista.includes(valorPrevio)) select.value = valorPrevio;
 }
 
@@ -172,7 +170,6 @@ document.getElementById('form-finanzas').addEventListener('submit', async (e) =>
     let peticion;
 
     if (idEditando) {
-        // MODO EDICIÓN
         const index = movimientos.findIndex(m => String(m.id) === String(idEditando));
         if (index !== -1) {
             movimientos[index] = { id: idEditando, fecha: fechaRegistro, tipo: tipoActual, cantidad, categoria, metodo, descripcion };
@@ -181,7 +178,6 @@ document.getElementById('form-finanzas').addEventListener('submit', async (e) =>
         idEditando = null;
         document.getElementById('titulo-registrar').textContent = "✍️ Nuevo Movimiento";
     } else {
-        // MODO CREACIÓN
         const nuevoMovimiento = { id: Date.now(), fecha: fechaRegistro, tipo: tipoActual, cantidad, categoria, metodo, descripcion };
         movimientos.push(nuevoMovimiento);
         peticion = { accion: 'nuevo', ...nuevoMovimiento };
@@ -196,7 +192,6 @@ document.getElementById('form-finanzas').addEventListener('submit', async (e) =>
     navigate('view-dashboard', document.querySelectorAll('.tab-item')[0]);
     btnGuardar.disabled = false;
 
-    // Añadir a la cola y procesar
     let pendientes = JSON.parse(localStorage.getItem('myfinance_pendientes')) || [];
     pendientes.push(peticion);
     localStorage.setItem('myfinance_pendientes', JSON.stringify(pendientes));
@@ -204,7 +199,6 @@ document.getElementById('form-finanzas').addEventListener('submit', async (e) =>
     procesarColaPendientes();
 });
 
-// NUEVO: Función para pre-rellenar el formulario
 function prepararEdicion() {
     const mov = movimientos.find(m => String(m.id) === String(idMovimientoActivo));
     if (!mov) return;
@@ -221,11 +215,53 @@ function prepararEdicion() {
     document.getElementById('select-metodo').value = mov.metodo;
     document.getElementById('input-descripcion').value = mov.descripcion;
     
-    // Formatear la fecha ISO para que el input type="datetime-local" la entienda
     const tzoffset = (new Date()).getTimezoneOffset() * 60000;
     const localISOTime = (new Date(new Date(mov.fecha) - tzoffset)).toISOString().slice(0, 16);
     document.getElementById('input-fecha').value = localISOTime;
 }
+
+// === FUNCIÓN DE REGISTRO MÁGICO (IA) ===
+async function procesarMagiaIA() {
+    const inputMagico = document.getElementById('input-magico');
+    const btnMagia = document.getElementById('btn-magia');
+    const texto = inputMagico.value.trim();
+    
+    if (!texto) return;
+
+    btnMagia.textContent = "⏳";
+    btnMagia.disabled = true;
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ 
+                token: getToken(), 
+                accion: 'ia_magia', 
+                textoUsuario: texto 
+            })
+        });
+
+        const resultado = await response.json();
+
+        if (resultado.cantidad) {
+            setTipo('gasto'); 
+            document.getElementById('input-cantidad').value = resultado.cantidad;
+            document.getElementById('select-categoria').value = resultado.categoria || "💸 Otros Gastos";
+            document.getElementById('select-metodo').value = resultado.metodo || "Tarjeta";
+            document.getElementById('input-descripcion').value = resultado.descripcion || texto;
+            
+            inputMagico.value = "";
+        }
+    } catch (error) {
+        console.error("Error al procesar la IA:", error);
+        alert("No se ha podido procesar este gasto. Intenta revisar tu clave de Claude.");
+    } finally {
+        btnMagia.textContent = "Procesar";
+        btnMagia.disabled = false;
+    }
+}
+// ==========================================
 
 function renderAll() {
     renderBalance();
@@ -277,10 +313,6 @@ function renderBalance() {
         deudaEl.style.display = 'none';
     }
 }
-
-// ... EL RESTO DE FUNCIONES (actualizarDesplegableCategoriasFiltro, actualizarFiltroMeses, 
-// crearItemLista, renderListaDetalles, renderHistorial, abrirDetalle, cerrarModal)
-// SE MANTIENEN EXACTAMENTE IGUAL QUE EN EL CÓDIGO ANTERIOR ...
 
 function actualizarDesplegableCategoriasFiltro() {
     const tipo = document.getElementById('filtro-tipo').value;
