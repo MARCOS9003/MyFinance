@@ -289,7 +289,8 @@ document.getElementById('input-chat').addEventListener('keypress', function (e) 
     if (e.key === 'Enter') enviarMensajeChat();
 });
 
-// === IA: REGISTRO MÁGICO ===
+
+// === IA: REGISTRO MÁGICO MÚLTIPLE (AUTOMÁTICO) ===
 async function procesarMagiaIA() {
     const inputMagico = document.getElementById('input-magico');
     const btnMagia = document.getElementById('btn-magia');
@@ -311,22 +312,66 @@ async function procesarMagiaIA() {
             })
         });
 
-        const resultado = await response.json();
+        const arrayResultados = await response.json();
 
-        if (resultado.cantidad) {
-            // Inteligencia extra para cambiar la pestaña de Gasto/Ingreso automáticamente
-            if (CAT_INGRESOS.includes(resultado.categoria)) setTipo('ingreso');
-            else if (CAT_AHORROS.includes(resultado.categoria)) setTipo('ahorro');
-            else setTipo('gasto');
-
-            document.getElementById('input-cantidad').value = resultado.cantidad;
-            document.getElementById('select-categoria').value = resultado.categoria || "💸 Otros Gastos";
-            document.getElementById('select-metodo').value = resultado.metodo || "Tarjeta";
-            document.getElementById('input-descripcion').value = resultado.descripcion || texto;
+        if (Array.isArray(arrayResultados) && arrayResultados.length > 0) {
             
-            inputMagico.value = "";
-        } else if (resultado.status === 'error') {
-            alert("Error de IA: " + resultado.message);
+            // 1. Mostrar resumen al usuario para confirmación
+            let mensajeConfirmacion = `✨ He detectado ${arrayResultados.length} movimiento(s):\n\n`;
+            let nuevosMovimientosLocal = [];
+            
+            arrayResultados.forEach((res, index) => {
+                // Deducción inteligente del Tipo (Gasto/Ingreso/Ahorro) basada en la Categoría
+                let tipoDeducido = 'gasto';
+                if (CAT_INGRESOS.includes(res.categoria)) tipoDeducido = 'ingreso';
+                else if (CAT_AHORROS.includes(res.categoria)) tipoDeducido = 'ahorro';
+                
+                mensajeConfirmacion += `${index + 1}. [${tipoDeducido.toUpperCase()}] ${res.cantidad}€ en ${res.categoria || "Otros Gastos"} (${res.descripcion})\n`;
+                
+                // Preparamos el objeto para guardarlo
+                nuevosMovimientosLocal.push({
+                    id: Date.now() + index, // Damos IDs únicos
+                    fecha: new Date().toISOString(),
+                    tipo: tipoDeducido,
+                    cantidad: parseFloat(res.cantidad),
+                    categoria: res.categoria || "💸 Otros Gastos",
+                    metodo: res.metodo || "Tarjeta",
+                    descripcion: res.descripcion || texto
+                });
+            });
+
+            mensajeConfirmacion += `\n¿Deseas registrar esto automáticamente en tu base de datos?`;
+
+            // 2. Si el usuario confirma, los guardamos todos de golpe
+            if (confirm(mensajeConfirmacion)) {
+                // Guardar en la lista visual del móvil (offline-first)
+                movimientos = [...movimientos, ...nuevosMovimientosLocal];
+                movimientos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); 
+                localStorage.setItem('myfinance_movimientos_cache', JSON.stringify(movimientos));
+                
+                // Preparar la petición para Google Apps Script
+                const peticionMultiple = { 
+                    accion: 'nuevo_multiple', 
+                    movimientos: nuevosMovimientosLocal 
+                };
+                
+                let pendientes = JSON.parse(localStorage.getItem('myfinance_pendientes')) || [];
+                pendientes.push(peticionMultiple);
+                localStorage.setItem('myfinance_pendientes', JSON.stringify(pendientes));
+                
+                procesarColaPendientes();
+                
+                // Limpiamos pantalla y volvemos al panel principal
+                inputMagico.value = "";
+                renderAll();
+                navigate('view-dashboard', document.querySelectorAll('.tab-item')[0]);
+                alert("✅ ¡Movimientos guardados con éxito!");
+            }
+
+        } else if (arrayResultados.status === 'error') {
+            alert("Error de IA: " + arrayResultados.message);
+        } else {
+            alert("No he podido entender los datos. Prueba a escribirlos más claro.");
         }
     } catch (error) {
         console.error("Error al procesar la IA:", error);
@@ -336,9 +381,6 @@ async function procesarMagiaIA() {
         btnMagia.disabled = false;
     }
 }
-document.getElementById('input-magico').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') procesarMagiaIA();
-});
 // ==========================================
 
 function renderAll() {
