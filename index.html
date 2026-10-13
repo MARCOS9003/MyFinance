@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>MyFinance</title>
     
-    <link rel="stylesheet" href="style.css?v=9">
+    <link rel="stylesheet" href="style.css?v=10">
     <link rel="manifest" href="manifest.json">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -70,9 +70,9 @@
             </div>
         </main>
 
-        <!-- Pantalla 2: Registrar -->
+        <!-- Pantalla 2: Registrar / Editar -->
         <main id="view-registrar" class="view">
-            <h1 class="page-title">✍️ Nuevo Movimiento</h1>
+            <h1 class="page-title" id="titulo-registrar">✍️ Nuevo Movimiento</h1>
             
             <div class="toggle-container">
                 <button id="btn-gasto" class="toggle-btn active" type="button">Gasto</button>
@@ -182,7 +182,10 @@
                     <p><strong>Descripción:</strong> <span id="modal-desc" style="color: var(--text-primary);">--</span></p>
                 </div>
                 
-                <button class="btn-primary" style="background-color: #ff3b30; margin-top: 5px;" onclick="eliminarMovimiento()">🗑️ Eliminar Registro</button>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button class="btn-primary" style="background-color: var(--blue); margin-top: 0;" onclick="prepararEdicion()">✏️ Editar</button>
+                    <button class="btn-primary" style="background-color: var(--red); margin-top: 0;" onclick="eliminarMovimiento()">🗑️ Borrar</button>
+                </div>
             </div>
         </div>
 
@@ -202,6 +205,6 @@
             </button>
         </nav>
     </div>
-    <script src="script.js?v=9"></script>
+    <script src="script.js?v=10"></script>
 </body>
 </html>
