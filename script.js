@@ -220,7 +220,7 @@ function prepararEdicion() {
     document.getElementById('input-fecha').value = localISOTime;
 }
 
-// === CHAT FINANCIERO CON CLAUDE ===
+// === IA: CHAT FINANCIERO ===
 async function enviarMensajeChat() {
     const inputChat = document.getElementById('input-chat');
     const btnChat = document.getElementById('btn-chat');
@@ -288,7 +288,58 @@ async function enviarMensajeChat() {
 document.getElementById('input-chat').addEventListener('keypress', function (e) {
     if (e.key === 'Enter') enviarMensajeChat();
 });
-// ===================================
+
+// === IA: REGISTRO MÁGICO ===
+async function procesarMagiaIA() {
+    const inputMagico = document.getElementById('input-magico');
+    const btnMagia = document.getElementById('btn-magia');
+    const texto = inputMagico.value.trim();
+    
+    if (!texto) return;
+
+    btnMagia.textContent = "⏳";
+    btnMagia.disabled = true;
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ 
+                token: getToken(), 
+                accion: 'ia_magia', 
+                textoUsuario: texto 
+            })
+        });
+
+        const resultado = await response.json();
+
+        if (resultado.cantidad) {
+            // Inteligencia extra para cambiar la pestaña de Gasto/Ingreso automáticamente
+            if (CAT_INGRESOS.includes(resultado.categoria)) setTipo('ingreso');
+            else if (CAT_AHORROS.includes(resultado.categoria)) setTipo('ahorro');
+            else setTipo('gasto');
+
+            document.getElementById('input-cantidad').value = resultado.cantidad;
+            document.getElementById('select-categoria').value = resultado.categoria || "💸 Otros Gastos";
+            document.getElementById('select-metodo').value = resultado.metodo || "Tarjeta";
+            document.getElementById('input-descripcion').value = resultado.descripcion || texto;
+            
+            inputMagico.value = "";
+        } else if (resultado.status === 'error') {
+            alert("Error de IA: " + resultado.message);
+        }
+    } catch (error) {
+        console.error("Error al procesar la IA:", error);
+        alert("No se ha podido procesar este gasto. Revisa tu conexión.");
+    } finally {
+        btnMagia.textContent = "Procesar";
+        btnMagia.disabled = false;
+    }
+}
+document.getElementById('input-magico').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') procesarMagiaIA();
+});
+// ==========================================
 
 function renderAll() {
     renderBalance();
